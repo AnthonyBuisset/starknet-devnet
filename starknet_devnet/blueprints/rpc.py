@@ -6,7 +6,6 @@ API Specification v0.1.0
 
 from __future__ import annotations
 import dataclasses
-import json
 
 from typing import Callable, Union, List, Tuple, Optional, Any
 from typing_extensions import TypedDict, Literal
@@ -41,7 +40,7 @@ from ..util import StarknetDevnetException
 
 rpc = Blueprint("rpc", __name__, url_prefix="/rpc")
 
-PROTOCOL_VERSION = "0.31.0" #TODO
+PROTOCOL_VERSION = "0.9.1"
 
 Felt = str
 
@@ -53,13 +52,13 @@ class BlockHashDict(TypedDict):
     """
     TypedDict class for BlockId with block hash
     """
-    block_hash: Felt
+    block_hash: BlockHash
 
 class BlockNumberDict(TypedDict):
     """
     TypedDict class for BlockId with block number
     """
-    block_number: int
+    block_number: BlockNumber
 
 BlockId = Union[BlockHashDict, BlockNumberDict, BlockTag]
 
@@ -90,8 +89,8 @@ class RpcInvokeTransaction(TypedDict):
     TypedDict for rpc invoke transaction
     """
     contract_address: Address
-    entry_point_selector: Optional[Felt] #TODO why optional
-    calldata: Optional[List[Felt]] #TODO why optional
+    entry_point_selector: Felt
+    calldata: List[Felt]
     # Common
     transaction_hash: TxnHash
     max_fee: Felt
@@ -142,7 +141,7 @@ def rpc_invoke_transaction(transaction: InvokeSpecificInfo) -> RpcInvokeTransact
         "version": hex(0x0),
         "signature": [rpc_felt(value) for value in transaction.signature],
         "nonce": rpc_felt(0), #TODO ?
-        "type": json.dumps(transaction.tx_type, default=lambda x: x.name),
+        "type": transaction.tx_type.name,
     }
     return transaction
 
@@ -159,7 +158,7 @@ def rpc_declare_transaction(transaction: DeclareSpecificInfo) -> RpcDeclareTrans
         "version": hex(transaction.version),
         "signature": [rpc_felt(value) for value in transaction.signature],
         "nonce": rpc_felt(transaction.nonce),
-        "type": json.dumps(transaction.tx_type, default=lambda x: x.name),
+        "type": transaction.tx_type.name,
     }
     return transaction
 
@@ -170,7 +169,7 @@ def rpc_deploy_transaction(transaction: DeploySpecificInfo) -> RpcDeployTransact
     """
     transaction: RpcDeployTransaction = {
         "transaction_hash": rpc_felt(transaction.transaction_hash),
-        "class_hash": rpc_felt(transaction.contract_address),
+        "class_hash": rpc_felt(transaction.class_hash),
         "version": hex(0x0),
         "type": transaction.tx_type.name,
         "contract_address": rpc_felt(transaction.contract_address),

@@ -68,6 +68,7 @@ def test_get_block_with_txs(deploy_info, block_id):
     block_hash: str = gateway_block["block_hash"]
     block_number: int = gateway_block["block_number"]
     new_root: str = gateway_block["state_root"]
+    block_tx = gateway_block["transactions"][0]
 
     block_id_map = {
         "hash": BlockNumberDict(block_number=block_number),
@@ -87,7 +88,15 @@ def test_get_block_with_txs(deploy_info, block_id):
     assert block["sequencer_address"] == hex(
         DEFAULT_GENERAL_CONFIG.sequencer_address)
     assert block["new_root"] == pad_zero(new_root)
-    # assert block["transactions"] == [rpc_transaction(tx) for tx in gateway_block["transactions"]] #TODO
+    assert block["transactions"] == [{
+        "class_hash": pad_zero(block_tx["class_hash"]),
+        "constructor_calldata": block_tx["constructor_calldata"],
+        "contract_address": pad_zero(block_tx["contract_address"]),
+        "contract_address_salt": pad_zero(block_tx["contract_address_salt"]),
+        "transaction_hash": pad_zero(block_tx["transaction_hash"]),
+        "type": block_tx["type"],
+        "version": "0x0",
+    }]
 
 
 # pylint: disable=unused-argument

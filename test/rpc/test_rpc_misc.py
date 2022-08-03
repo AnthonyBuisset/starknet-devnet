@@ -84,7 +84,7 @@ def test_get_state_update(deploy_info, invoke_info, contract_class):
     }
 
 
-def test_chain_id(deploy_info):
+def test_chain_id():
     """
     Test chain id
     """
@@ -97,7 +97,7 @@ def test_chain_id(deploy_info):
     assert rpc_chain_id == hex(chain_id)
 
 
-def test_protocol_version(deploy_info):
+def test_protocol_version():
     """
     Test protocol version
     """

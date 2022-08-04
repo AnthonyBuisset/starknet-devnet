@@ -140,7 +140,7 @@ def rpc_invoke_transaction(transaction: InvokeSpecificInfo) -> RpcInvokeTransact
         "max_fee": rpc_felt(transaction.max_fee),
         "version": hex(0x0),
         "signature": [rpc_felt(value) for value in transaction.signature],
-        "nonce": rpc_felt(0), #TODO ?
+        "nonce": rpc_felt(0),
         "type": transaction.tx_type.name,
     }
     return transaction
@@ -824,7 +824,7 @@ def rpc_state_update(state_update: BlockStateUpdate) -> RpcStateUpdate:
         _contracts = []
         for contract in state_update.state_diff.declared_contracts:
             diff: RpcDeclaredContractDiff = {
-                "class_hash": rpc_felt(contract) #TODO contract.class_hash ?
+                "class_hash": rpc_felt(contract)
             }
             _contracts.append(diff)
         return _contracts

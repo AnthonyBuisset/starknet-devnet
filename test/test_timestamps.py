@@ -137,7 +137,6 @@ def test_set_time():
 @devnet_in_background("--start-time", str(SET_TIME_ARGUMENT))
 def test_set_time_argument():
     """Test timestamp set time argument"""
-    deploy_ts_contract()
     first_block_ts = get_ts_from_last_block()
 
     assert first_block_ts == SET_TIME_ARGUMENT

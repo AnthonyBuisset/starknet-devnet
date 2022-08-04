@@ -7,8 +7,11 @@ import requests
 import pytest
 
 from starknet_devnet.server import app
-from .util import devnet_in_background, load_file_content
+from starknet_devnet.constants import DEFAULT_GAS_PRICE
+from .util import devnet_in_background, load_file_content, deploy
+from .support.assertions import assert_valid_schema
 from .settings import APP_URL
+from .shared import GENESIS_BLOCK_HASH, GENESIS_BLOCK_NUMBER, STORAGE_CONTRACT_PATH
 
 DEPLOY_CONTENT = load_file_content("deploy.json")
 INVOKE_CONTENT = load_file_content("invoke.json")
@@ -125,7 +128,7 @@ def send_call_with_requests(req_dict: dict):
         json=json.dumps(req_dict)
     )
 
-def get_block_number(req_dict: dict):
+def get_block_by_number(req_dict: dict):
     """Get block number from request dict"""
     block_number = req_dict["blockNumber"]
     return requests.get(
@@ -162,6 +165,12 @@ def get_state_update(block_hash, block_number):
         f"{APP_URL}/feeder_gateway/get_state_update?blockHash={block_hash}&blockNumber={block_number}"
     )
 
+def get_transaction_status(tx_hash):
+    """Get transaction status"""
+    response = requests.get(f"{APP_URL}/feeder_gateway/get_transaction_status?transactionHash={tx_hash}")
+    assert response.status_code == 200
+    return response.json()
+
 @pytest.mark.deploy
 @devnet_in_background()
 def test_error_response_deploy_without_calldata():
@@ -190,7 +199,7 @@ def test_error_response_call_without_calldata():
 @devnet_in_background()
 def test_error_response_call_with_negative_block_number():
     """Call with negative block number"""
-    resp = get_block_number({"blockNumber": -1})
+    resp = get_block_by_number({"blockNumber": -1})
 
     json_error_message = resp.json()["message"]
     assert resp.status_code == 500
@@ -248,3 +257,45 @@ def test_error_response_class_by_hash():
     assert resp.status_code == 500
     expected_message = f"Class with hash {INVALID_HASH} is not declared"
     assert expected_message == error_message
+
+@devnet_in_background()
+def test_create_block_endpoint():
+    """test empty block creationn"""
+    resp = get_block_by_number({"blockNumber": "latest"}).json()
+    assert resp.get("block_hash") == GENESIS_BLOCK_HASH
+    assert resp.get("block_number") == GENESIS_BLOCK_NUMBER
+
+    resp = requests.post(f"{APP_URL}/create_block").json()
+    assert resp.get("block_number") == GENESIS_BLOCK_NUMBER + 1
+    assert resp.get("block_hash") == hex(GENESIS_BLOCK_NUMBER + 1)
+    assert resp.get("status") == "ACCEPTED_ON_L2"
+    assert resp.get("gas_price") == hex(DEFAULT_GAS_PRICE)
+    assert resp.get("transactions") == []
+
+    deploy(STORAGE_CONTRACT_PATH)
+    resp = get_block_by_number({"blockNumber": "latest"}).json()
+    assert resp.get("block_number") == GENESIS_BLOCK_NUMBER + 2
+
+    resp = requests.post(f"{APP_URL}/create_block").json()
+    assert resp.get("block_number") == GENESIS_BLOCK_NUMBER + 3
+    assert resp.get("block_hash") == hex(GENESIS_BLOCK_NUMBER + 3)
+
+@devnet_in_background()
+def test_get_transaction_status():
+    """Assert valid response schema"""
+    #Create Transaction
+    response = requests.post(f"{APP_URL}/mint", json={
+        "address": "0x0513493b4Fe460031d445fFACacACf3B19196a05Fd146Ed1609B7248101eF847",
+        "amount": 1000e18
+    })
+    assert response.status_code == 200
+    tx_hash = response.json().get("tx_hash")
+
+    json_response = get_transaction_status(tx_hash)
+    assert_valid_schema(json_response, "get_transaction_status.json")
+    assert json_response.get("tx_status") == "ACCEPTED_ON_L2"
+
+    invalid_tx_hash = "0x443a8b3ec1f9e0c64"
+    json_response = get_transaction_status(invalid_tx_hash)
+    assert_valid_schema(json_response, "get_transaction_status.json")
+    assert json_response.get("tx_status") == "NOT_RECEIVED"

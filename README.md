@@ -114,15 +114,15 @@ docker pull shardlabs/starknet-devnet:<TAG>
 
 Image tags correspond to Devnet versions as on PyPI and GitHub, with the `latest` tag used for the latest image. These images are built for linux/amd64. To use the arm64 versions, since `0.1.23` you can append `-arm` to the tag. E.g.:
 
-- `shardlabs/starknet-devnet:0.2.6` - image for the amd64 architecture
-- `shardlabs/starknet-devnet:0.2.6-arm` - image for the arm64 architecture
+- `shardlabs/starknet-devnet:0.2.7` - image for the amd64 architecture
+- `shardlabs/starknet-devnet:0.2.7-arm` - image for the arm64 architecture
 - `shardlabs/starknet-devnet:latest-arm`
 
 By appending the `-seed0` suffix, you can access images which [predeploy funded accounts](#predeployed-accounts) with `--seed 0`, thus always deploying the same set of accounts. E.g.:
 
-- `shardlabs/starknet-devnet:0.2.6-seed0`
+- `shardlabs/starknet-devnet:0.2.7-seed0`
 - `shardlabs/starknet-devnet:latest-seed0`
-- `shardlabs/starknet-devnet:0.2.6-arm-seed0`
+- `shardlabs/starknet-devnet:0.2.7-arm-seed0`
 
 The server inside the container listens to the port 5050, which you need to publish to a desired `<PORT>` on your host machine:
 
@@ -314,6 +314,38 @@ docker run \
 ## Block explorer
 
 A local block explorer (Voyager), as noted [here](https://voyager.online/local-version/), apparently cannot be set up to work with Devnet. Read more in [this issue](https://github.com/Shard-Labs/starknet-devnet/issues/60).
+
+## Block
+
+Devnet start with a genesis block.
+
+GENESIS_BLOCK_NUMBER = 0
+
+GENESIS_BLOCK_HASH = "0x0"
+
+You can create empty block without transaction.
+
+```
+POST /create_block
+```
+
+Response:
+
+```
+{
+    "transactions": [],
+    "parent_block_hash": "0x0",
+    "timestamp": 1659457385,
+    "state_root": "004bee3ee...",
+    "gas_price": "0x174876e800",
+    "sequencer_address": "0x4bbfb0d1aa...",
+    "transaction_receipts": [],
+    "starknet_version": "0.9.1",
+    "block_hash": "0x1",
+    "block_number": 1,
+    "status": "ACCEPTED_ON_L2"
+}
+```
 
 ## Lite mode
 
@@ -546,6 +578,17 @@ poetry run starknet-devnet
 ./scripts/lint.sh
 ```
 
+### Development - Test in parallel
+```bash
+./scripts/test.sh 
+#optional you can pass <TEST_DIR>/
+```
+or manually you can set -s -v for verbose and replace 'auto' with number of workers (recommended same as CPU cores)
+```bash
+poetry run pytest -n auto --dist loadscope test/  
+# parallel testing using auto detect number of CPU cores and spawn same amount of workers
+```
+
 ### Development - Test
 
 When running tests locally, do it from the project root:
@@ -554,8 +597,6 @@ When running tests locally, do it from the project root:
 ./scripts/compile_contracts.sh # first generate the artifacts
 
 poetry run pytest test/
-
-poetry run pytest -n auto --dist loadscope test/  # parallel testing using n CPU workers
 
 poetry run pytest -s -v test/ # for more verbose output
 

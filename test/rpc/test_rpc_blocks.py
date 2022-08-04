@@ -3,6 +3,7 @@ Tests RPC blocks
 """
 import pytest
 
+from test.shared import GENESIS_BLOCK_NUMBER, INCORRECT_GENESIS_BLOCK_HASH
 from starknet_devnet.blueprints.rpc import BlockNumberDict, BlockHashDict
 from starknet_devnet.general_config import DEFAULT_GENERAL_CONFIG
 
@@ -100,7 +101,7 @@ def test_get_block_with_txs(deploy_info, block_id):
 
 
 # pylint: disable=unused-argument
-@pytest.mark.parametrize("block_id", [BlockNumberDict(block_number=1234), BlockHashDict(block_hash="0x0")])
+@pytest.mark.parametrize("block_id", [BlockNumberDict(block_number=1234), BlockHashDict(block_hash=INCORRECT_GENESIS_BLOCK_HASH)])
 def test_get_block_with_txs_raises_on_incorrect_block_id(deploy_info, block_id):
     """
     Get block with txs by incorrect block_id
@@ -122,7 +123,7 @@ def test_get_block_transaction_count(deploy_info, block_id):
     """
     block = get_block_with_transaction(deploy_info["transaction_hash"])
     block_hash: str = block["block_hash"]
-    block_number: str = block["block_number"]
+    block_number: int = GENESIS_BLOCK_NUMBER + 1
 
     block_id_map = {
         "hash": BlockNumberDict(block_number=block_number),
@@ -139,7 +140,7 @@ def test_get_block_transaction_count(deploy_info, block_id):
 
 
 # pylint: disable=unused-argument
-@pytest.mark.parametrize("block_id", [BlockNumberDict(block_number=99999), BlockHashDict(block_hash="0x0")])
+@pytest.mark.parametrize("block_id", [BlockNumberDict(block_number=99999), BlockHashDict(block_hash=INCORRECT_GENESIS_BLOCK_HASH)])
 def test_get_block_transaction_count_raises_on_incorrect_block_id(deploy_info, block_id):
     """
     Get count of transactions in block by incorrect block id

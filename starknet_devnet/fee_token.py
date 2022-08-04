@@ -8,7 +8,6 @@ from starkware.starknet.services.api.gateway.transaction import InvokeFunction
 from starkware.starknet.storage.starknet_storage import StorageLeaf
 from starkware.starknet.business_logic.state.objects import (ContractState, ContractCarriedState)
 from starkware.starknet.testing.contract import StarknetContract
-from starkware.starknet.testing.starknet import Starknet
 from starkware.python.utils import to_bytes
 from starkware.starknet.compiler.compile import get_selector_from_name
 from starknet_devnet.util import Uint256
@@ -32,6 +31,9 @@ class FeeToken:
 
     contract: StarknetContract = None
 
+    def __init__(self, starknet_wrapper):
+        self.starknet_wrapper = starknet_wrapper
+
     @classmethod
     def get_contract_class(cls):
         """Returns contract class via lazy loading."""
@@ -39,42 +41,43 @@ class FeeToken:
             cls.CONTRACT_CLASS = ContractClass.load(load_nearby_contract("ERC20_Mintable_OZ_0.2.0"))
         return cls.CONTRACT_CLASS
 
-    @classmethod
-    async def deploy(cls, starknet: Starknet):
+    async def deploy(self):
         """Deploy token contract for charging fees."""
+        starknet = self.starknet_wrapper.starknet
+        contract_class = FeeToken.get_contract_class()
 
-        fee_token_carried_state = starknet.state.state.contract_states[cls.ADDRESS]
+        fee_token_carried_state = starknet.state.state.contract_states[FeeToken.ADDRESS]
         fee_token_state = fee_token_carried_state.state
         assert not fee_token_state.initialized
 
-        starknet.state.state.contract_definitions[cls.HASH_BYTES] = cls.get_contract_class()
+        starknet.state.state.contract_definitions[FeeToken.HASH_BYTES] = contract_class
         newly_deployed_fee_token_state = await ContractState.create(
-            contract_hash=cls.HASH_BYTES,
+            contract_hash=FeeToken.HASH_BYTES,
             storage_commitment_tree=fee_token_state.storage_commitment_tree
         )
 
-        starknet.state.state.contract_states[cls.ADDRESS] = ContractCarriedState(
+        starknet.state.state.contract_states[FeeToken.ADDRESS] = ContractCarriedState(
             state=newly_deployed_fee_token_state,
             storage_updates={
                 # Running the constructor doesn't need to be simulated
-                get_selector_from_name('ERC20_name'): StorageLeaf(int.from_bytes(bytes(FeeToken.NAME, "ascii"), "big")),
-                get_selector_from_name('ERC20_symbol'): StorageLeaf(int.from_bytes(bytes(FeeToken.SYMBOL, "ascii"), "big")),
-                get_selector_from_name('ERC20_decimals'): StorageLeaf(18)
+                get_selector_from_name("ERC20_name"): StorageLeaf(int.from_bytes(bytes(FeeToken.NAME, "ascii"), "big")),
+                get_selector_from_name("ERC20_symbol"): StorageLeaf(int.from_bytes(bytes(FeeToken.SYMBOL, "ascii"), "big")),
+                get_selector_from_name("ERC20_decimals"): StorageLeaf(18)
             }
         )
 
-        cls.contract = StarknetContract(
+        self.contract = StarknetContract(
             state=starknet.state,
-            abi=cls.get_contract_class().abi,
-            contract_address=cls.ADDRESS,
+            abi=FeeToken.get_contract_class().abi,
+            contract_address=FeeToken.ADDRESS,
             deploy_execution_info=None
         )
 
-    @classmethod
-    async def get_balance(cls, address: int) -> int:
+        self.starknet_wrapper.store_contract(FeeToken.ADDRESS, self.contract, contract_class)
+
+    async def get_balance(self, address: int) -> int:
         """Return the balance of the contract under `address`."""
-        assert cls.contract
-        response = await cls.contract.balanceOf(address).call()
+        response = await self.contract.balanceOf(address).call()
 
         balance = Uint256(
             low=response.result.balance.low,
@@ -83,28 +86,36 @@ class FeeToken:
         return balance
 
     @classmethod
-    async def mint_lite(cls, to_address: int, amount: int) -> None:
-        """Mint `amount` of token at `to_address` without creating a tx."""
-        assert cls.contract
-        amount_uint256 = Uint256.from_felt(amount)
-        await cls.contract.mint(to_address, (amount_uint256.low, amount_uint256.high)).invoke()
-
-    @classmethod
-    async def mint(cls, to_address: int, amount: int, starknet_wrapper):
-        """Mint `amount` of token at `to_address` with creating a tx."""
-        assert cls.contract
-        amount_uint256 = Uint256.from_felt(amount)
-
+    def get_mint_transaction(cls, to_address: int, amount: Uint256):
+        """Construct a transaction object representing minting request"""
         transaction_data = {
             "entry_point_selector": hex(get_selector_from_name("mint")),
             "calldata": [
                 str(to_address),
-                str(amount_uint256.low),
-                str(amount_uint256.high),
+                str(amount.low),
+                str(amount.high),
             ],
             "signature": [],
             "contract_address": hex(cls.ADDRESS)
         }
-        transaction = InvokeFunction.load(transaction_data)
-        _, tx_hash, _ = await starknet_wrapper.invoke(transaction)
+        return InvokeFunction.load(transaction_data)
+
+    async def mint(self, to_address: int, amount: int, lite: bool):
+        """
+        Mint `amount` tokens at address `to_address`.
+        Returns the `tx_hash` (as hex str) if not `lite`; else returns `None`
+        """
+        amount_uint256 = Uint256.from_felt(amount)
+
+        tx_hash = None
+        if lite:
+            await self.contract.mint(
+                to_address,
+                (amount_uint256.low, amount_uint256.high)
+            ).invoke()
+        else:
+            transaction = self.get_mint_transaction(to_address, amount_uint256)
+            _, tx_hash_int, _ = await self.starknet_wrapper.invoke(transaction)
+            tx_hash = hex(tx_hash_int)
+
         return tx_hash

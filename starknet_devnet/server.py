@@ -4,6 +4,7 @@ A server exposing Starknet functionalities as API endpoints.
 
 from pickle import UnpicklingError
 import sys
+import asyncio
 
 from flask import Flask, jsonify
 from flask_cors import CORS
@@ -36,11 +37,12 @@ app.register_blueprint(rpc)
 def generate_accounts(args):
     """Generate accounts """
     if args.accounts:
-        state.generate_accounts(
+        state.starknet_wrapper.accounts.generate(
             n_accounts=args.accounts,
             initial_balance=args.initial_balance,
             seed=args.seed
         )
+        state.starknet_wrapper.accounts.print()
 
 def set_dump_options(args):
     """Assign dumping options from args to state."""
@@ -100,6 +102,8 @@ def main():
     enable_lite_mode(args)
     set_start_time(args)
     set_gas_price(args)
+
+    asyncio.run(state.starknet_wrapper.initialize())
 
     try:
         meinheld.listen((args.host, args.port))

@@ -10,7 +10,7 @@ from test.shared import INCORRECT_GENESIS_BLOCK_HASH
 from starkware.starknet.definitions import constants
 from starknet_devnet.blueprints.rpc import RpcContractClass
 
-from .rpc_utils import rpc_call, get_block_with_transaction, pad_zero, gateway_call
+from .rpc_utils import rpc_call, get_block_with_transaction, pad_zero
 
 
 def test_get_transaction_by_hash_deploy(deploy_info):
@@ -38,6 +38,7 @@ def test_get_transaction_by_hash_deploy(deploy_info):
     }
 
 
+# pylint: disable=unused-argument
 def test_get_transaction_by_hash_invoke(deploy_info, invoke_info):
     """
     Get transaction by hash

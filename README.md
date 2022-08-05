@@ -168,14 +168,16 @@ If you don't specify the `HOST` part, the server will indeed be available on all
 
 ## JSON-RPC API
 
-Devnet also partially supports JSON-RPC API (v0.15.0: [specifications](https://github.com/starkware-libs/starknet-specs/blob/606c21e06be92ea1543fd0134b7f98df622c2fbf/api/starknet_api_openrpc.json)) and WRITE API (v0.3.0: [specifications](https://github.com/starkware-libs/starknet-specs/blob/4c31d6f9f842028ca8cfd073ec8d0d5089b087c4/api/starknet_write_api.json)). It can be reached under `/rpc`. For an example:
+Devnet also partially supports JSON-RPC API v0.1.0: [specifications](https://github.com/starkware-libs/starknet-specs/releases/tag/v0.1.0) . It can be reached under `/rpc`. For an example:
 
 ```
 POST /rpc
 {
   "jsonrpc": "2.0",
-  "method": "starknet_protocolVersion",
-  "params": [],
+  "method": "starknet_getBlockTransactionCount",
+  "params": {
+    "block_id": "latest"
+  },
   "id": 0
 }
 ```

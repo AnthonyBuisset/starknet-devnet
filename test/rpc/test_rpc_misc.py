@@ -23,15 +23,17 @@ def test_get_state_update(deploy_info, invoke_info, contract_class):
     contract_address: str = deploy_info["address"]
     block_with_deploy_hash: str = pad_zero(block_with_deploy["block_hash"])
     block_with_invoke_hash: str = pad_zero(block_with_invoke["block_hash"])
+    block_id_deploy = BlockHashDict(block_hash=block_with_deploy_hash)
+    block_id_invoke = BlockHashDict(block_hash=block_with_invoke_hash)
+
+    storage = gateway_call("get_storage_at", contractAddress=contract_address, key=get_storage_var_address("balance"))
 
     new_root_deploy = "0x0" + gateway_call("get_state_update", blockHash=block_with_deploy_hash)["new_root"].lstrip("0")
     new_root_invoke = "0x0" + gateway_call("get_state_update", blockHash=block_with_invoke_hash)["new_root"].lstrip("0")
 
-    block_id = BlockHashDict(block_hash=block_with_deploy_hash)
-
     resp = rpc_call(
         "starknet_getStateUpdate", params={
-            "block_id": block_id
+            "block_id": block_id_deploy
         }
     )
     state_update = resp["result"]
@@ -56,12 +58,9 @@ def test_get_state_update(deploy_info, invoke_info, contract_class):
         "nonces": [],
     }
 
-    block_id = BlockHashDict(block_hash=block_with_invoke_hash)
-
-    storage = gateway_call("get_storage_at", contractAddress=contract_address, key=get_storage_var_address("balance"))
     resp = rpc_call(
         "starknet_getStateUpdate", params={
-            "block_id": block_id
+            "block_id": block_id_invoke
         }
     )
     state_update = resp["result"]

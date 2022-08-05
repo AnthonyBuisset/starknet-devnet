@@ -7,10 +7,10 @@ API Specification v0.1.0
 from __future__ import annotations
 import dataclasses
 
-from typing import Callable, Union, List, Tuple, Optional, Any
+from typing import Callable, Union, List, Tuple, Optional
 from typing_extensions import TypedDict, Literal
 from flask import Blueprint
-from flask import request as flaskRequest
+from flask import request as flask_request
 from marshmallow.exceptions import MarshmallowError
 
 from starkware.starknet.services.api.contract_class import ContractClass
@@ -24,6 +24,7 @@ from starkware.starknet.services.api.gateway.transaction import (
 )
 from starkware.starknet.services.api.gateway.transaction_utils import compress_program, decompress_program
 from starkware.starknet.services.api.feeder_gateway.response_objects import (
+    BlockStatus,
     StarknetBlock,
     InvokeSpecificInfo,
     DeploySpecificInfo,
@@ -48,11 +49,13 @@ BlockHash = Felt
 BlockNumber = int
 BlockTag = Literal["latest", "pending"]
 
+
 class BlockHashDict(TypedDict):
     """
     TypedDict class for BlockId with block hash
     """
     block_hash: BlockHash
+
 
 class BlockNumberDict(TypedDict):
     """
@@ -60,21 +63,37 @@ class BlockNumberDict(TypedDict):
     """
     block_number: BlockNumber
 
+
 BlockId = Union[BlockHashDict, BlockNumberDict, BlockTag]
 
-TxnStatus = BlockStatus = Literal["PENDING", "ACCEPTED_ON_L2", "ACCEPTED_ON_L1", "REJECTED"]
+TxnStatus = Literal["PENDING", "ACCEPTED_ON_L2", "ACCEPTED_ON_L1", "REJECTED"]
+RpcBlockStatus = Literal["PENDING", "ACCEPTED_ON_L2", "ACCEPTED_ON_L1", "REJECTED"]
 
 TxnHash = Felt
 Address = Felt
 NumAsHex = str
+# Pending transactions will not be supported since it
+# doesn't make much sense with the current implementation of devnet
 TxnType = Literal["DECLARE", "DEPLOY", "INVOKE"]
+
+
+def rpc_txn_type(transaction_type: str) -> str:
+    """
+    Convert gateway transaction type to RPC TxnType
+    """
+    txn_type_map = {
+        "DEPLOY": "DEPLOY",
+        "DECLARE": "DECLARE",
+        "INVOKE_FUNCTION": "INVOKE",
+    }
+    return txn_type_map[transaction_type]
 
 
 class RpcBlock(TypedDict):
     """
     TypeDict for rpc block
     """
-    status: BlockStatus
+    status: RpcBlockStatus
     block_hash: BlockHash
     parent_hash: BlockHash
     block_number: BlockNumber
@@ -128,11 +147,14 @@ class RpcDeployTransaction(TypedDict):
     constructor_calldata: List[Felt]
 
 
+RpcTransaction = Union[RpcInvokeTransaction, RpcDeclareTransaction, RpcDeployTransaction]
+
+
 def rpc_invoke_transaction(transaction: InvokeSpecificInfo) -> RpcInvokeTransaction:
     """
     Convert gateway invoke transaction to rpc format
     """
-    transaction: RpcInvokeTransaction = {
+    txn: RpcInvokeTransaction = {
         "contract_address": rpc_felt(transaction.contract_address),
         "entry_point_selector": rpc_felt(transaction.entry_point_selector),
         "calldata": [rpc_felt(data) for data in transaction.calldata],
@@ -141,16 +163,16 @@ def rpc_invoke_transaction(transaction: InvokeSpecificInfo) -> RpcInvokeTransact
         "version": hex(0x0),
         "signature": [rpc_felt(value) for value in transaction.signature],
         "nonce": rpc_felt(0),
-        "type": transaction.tx_type.name,
+        "type": rpc_txn_type(transaction.tx_type.name),
     }
-    return transaction
+    return txn
 
 
 def rpc_declare_transaction(transaction: DeclareSpecificInfo) -> RpcDeclareTransaction:
     """
     Convert gateway declare transaction to rpc format
     """
-    transaction: RpcDeclareTransaction = {
+    txn: RpcDeclareTransaction = {
         "class_hash": rpc_felt(transaction.class_hash),
         "sender_address": rpc_felt(transaction.sender_address),
         "transaction_hash": rpc_felt(transaction.transaction_hash),
@@ -158,25 +180,25 @@ def rpc_declare_transaction(transaction: DeclareSpecificInfo) -> RpcDeclareTrans
         "version": hex(transaction.version),
         "signature": [rpc_felt(value) for value in transaction.signature],
         "nonce": rpc_felt(transaction.nonce),
-        "type": transaction.tx_type.name,
+        "type": rpc_txn_type(transaction.tx_type.name),
     }
-    return transaction
+    return txn
 
 
 def rpc_deploy_transaction(transaction: DeploySpecificInfo) -> RpcDeployTransaction:
     """
     Convert gateway deploy transaction to rpc format
     """
-    transaction: RpcDeployTransaction = {
+    txn: RpcDeployTransaction = {
         "transaction_hash": rpc_felt(transaction.transaction_hash),
         "class_hash": rpc_felt(transaction.class_hash),
         "version": hex(0x0),
-        "type": transaction.tx_type.name,
+        "type": rpc_txn_type(transaction.tx_type.name),
         "contract_address": rpc_felt(transaction.contract_address),
         "contract_address_salt": rpc_felt(transaction.contract_address_salt),
         "constructor_calldata": [rpc_felt(data) for data in transaction.constructor_calldata],
     }
-    return transaction
+    return txn
 
 
 def block_tag_to_block_number(block_id: BlockId) -> BlockId:
@@ -184,11 +206,53 @@ def block_tag_to_block_number(block_id: BlockId) -> BlockId:
     Changes block_id from tag to dict with "block_number" field
     """
     if isinstance(block_id, str):
+        if block_id == "latest":
+            return {"block_number": state.starknet_wrapper.blocks.get_number_of_blocks() - 1}
+
         if block_id == "pending":
             raise RpcError(code=-1, message="Calls with block_hash == 'pending' are not supported currently.")
-        return {"block_number": state.starknet_wrapper.blocks.get_number_of_blocks() - 1}
+
+        raise RpcError(code=24, message="Invalid block id")
 
     return block_id
+
+
+def get_block_by_block_id(block_id: BlockId) -> dict:
+    """
+    Get block using different method depending on block_id type
+    """
+    block_id = block_tag_to_block_number(block_id)
+
+    try:
+        if "block_hash" in block_id:
+            return state.starknet_wrapper.blocks.get_by_hash(block_hash=block_id["block_hash"])
+        return state.starknet_wrapper.blocks.get_by_number(block_number=block_id["block_number"])
+    except StarknetDevnetException as ex:
+        raise RpcError(code=24, message="Invalid block id") from ex
+
+
+def assert_block_id_is_latest(block_id: BlockId) -> None:
+    """
+    Assert block_id is "latest" and throw RpcError otherwise
+    """
+    if block_id != "latest":
+        # By RPC here we should return `24 invalid block id` but in this case I believe it's more
+        # descriptive to the user to use a custom error
+        raise RpcError(code=-1, message="Calls with block_id != 'latest' are not supported currently.")
+
+
+def rpc_block_status(block_status: BlockStatus) -> dict:
+    """
+    Convert gateway BlockStatus to RpcBlockStatus
+    """
+    block_status_map = {
+        "PENDING": "PENDING",
+        "ABORTED": "REJECTED",
+        "REVERTED": "REJECTED",
+        "ACCEPTED_ON_L2": "ACCEPTED_ON_L2",
+        "ACCEPTED_ON_L1": "ACCEPTED_ON_L1"
+    }
+    return block_status_map[block_status]
 
 
 @rpc.route("", methods=["POST"])
@@ -196,7 +260,7 @@ async def base_route():
     """
     Base route for RPC calls
     """
-    method, args, message_id = parse_body(flaskRequest.json)
+    method, args, message_id = parse_body(flask_request.json)
 
     try:
         result = await method(*args) if isinstance(args, list) else await method(**args)
@@ -212,34 +276,16 @@ async def get_block_with_tx_hashes(block_id: BlockId) -> dict:
     """
     Get block information with transaction hashes given the block id
     """
-    block_id = block_tag_to_block_number(block_id)
-
-    try:
-        if "block_hash" in block_id:
-            result = state.starknet_wrapper.blocks.get_by_hash(block_hash=block_id["block_hash"])
-        else:
-            result = state.starknet_wrapper.blocks.get_by_number(block_number=block_id["block_number"])
-    except StarknetDevnetException as ex:
-        raise RpcError(code=24, message="Invalid block id") from ex
-
-    return await rpc_block(block=result)
+    block = get_block_by_block_id(block_id)
+    return await rpc_block(block=block)
 
 
 async def get_block_with_txs(block_id: BlockId) -> dict:
     """
     Get block information with full transactions given the block id
     """
-    block_id = block_tag_to_block_number(block_id)
-
-    try:
-        if "block_hash" in block_id:
-            result = state.starknet_wrapper.blocks.get_by_hash(block_hash=block_id["block_hash"])
-        else:
-            result = state.starknet_wrapper.blocks.get_by_number(block_number=block_id["block_number"])
-    except StarknetDevnetException as ex:
-        raise RpcError(code=24, message="Invalid block id") from ex
-
-    return await rpc_block(block=result, requested_scope="FULL_TXNS")
+    block = get_block_by_block_id(block_id)
+    return await rpc_block(block=block, requested_scope="FULL_TXNS")
 
 
 async def get_state_update(block_id: BlockId) -> dict:
@@ -263,8 +309,7 @@ async def get_storage_at(contract_address: Address, key: str, block_id: BlockId)
     """
     Get the value of the storage at the given address and key
     """
-    if block_id != "latest":
-        raise RpcError(code=-1, message="Calls with block_id != 'latest' are not supported currently.")
+    assert_block_id_is_latest(block_id)
 
     if not state.starknet_wrapper.contracts.is_deployed(int(contract_address, 16)):
         raise RpcError(code=20, message="Contract not found")
@@ -294,15 +339,7 @@ async def get_transaction_by_block_id_and_index(block_id: BlockId, index: int) -
     """
     Get the details of a transaction by a given block id and index
     """
-    block_id = block_tag_to_block_number(block_id)
-
-    try:
-        if "block_hash" in block_id:
-            block = state.starknet_wrapper.blocks.get_by_hash(block_hash=block_id["block_hash"])
-        else:
-            block = state.starknet_wrapper.blocks.get_by_number(block_number=block_id["block_number"])
-    except StarknetDevnetException as ex:
-        raise RpcError(code=24, message="Invalid block id") from ex
+    block = get_block_by_block_id(block_id)
 
     try:
         transaction_hash: int = block.transactions[index].transaction_hash
@@ -327,24 +364,6 @@ async def get_transaction_receipt(transaction_hash: TxnHash) -> dict:
     return rpc_transaction_receipt(result)
 
 
-# async def get_code(contract_address: str) -> dict:
-#     """
-#     Get the code of a specific contract
-#     """
-#     try:
-#         result = state.starknet_wrapper.contracts.get_code(address=int(contract_address, 16))
-#     except StarknetDevnetException as ex:
-#         raise RpcError(code=20, message="Contract not found") from ex
-#
-#     if len(result["bytecode"]) == 0:
-#         raise RpcError(code=20, message="Contract not found")
-#
-#     return {
-#         "bytecode": result["bytecode"],
-#         "abi": json.dumps(result["abi"])
-#     }
-
-
 async def get_class(class_hash: Felt) -> dict:
     """
     Get the contract class definition associated with the given hash
@@ -361,8 +380,7 @@ async def get_class_hash_at(block_id: BlockId, contract_address: Address) -> Fel
     """
     Get the contract class hash in the given block for the contract deployed at the given address
     """
-    if block_id != "latest":
-        raise RpcError(code=-1, message="Calls with block_id != 'latest' are not supported currently.")
+    assert_block_id_is_latest(block_id)
 
     try:
         result = state.starknet_wrapper.contracts.get_class_hash_at(address=int(contract_address, 16))
@@ -376,8 +394,7 @@ async def get_class_at(block_id: BlockId, contract_address: Address) -> dict:
     """
     Get the contract class definition in the given block at the given address
     """
-    if block_id != "latest":
-        raise RpcError(code=-1, message="Calls with block_id != 'latest' are not supported currently.")
+    assert_block_id_is_latest(block_id)
 
     try:
         class_hash = state.starknet_wrapper.contracts.get_class_hash_at(address=int(contract_address, 16))
@@ -392,16 +409,7 @@ async def get_block_transaction_count(block_id: BlockId) -> int:
     """
     Get the number of transactions in a block given a block id
     """
-    block_id = block_tag_to_block_number(block_id)
-
-    try:
-        if "block_hash" in block_id:
-            block = state.starknet_wrapper.blocks.get_by_hash(block_hash=block_id["block_hash"])
-        else:
-            block = state.starknet_wrapper.blocks.get_by_number(block_number=block_id["block_number"])
-    except StarknetDevnetException as ex:
-        raise RpcError(code=24, message="Invalid block id") from ex
-
+    block = get_block_by_block_id(block_id)
     return len(block.transactions)
 
 
@@ -415,12 +423,7 @@ async def call(request: RpcInvokeTransaction, block_id: BlockId) -> List[Felt]:
         "calldata": request["calldata"]
     }
 
-    # For now, we only support 'latest' block, support for specific blocks
-    # in devnet is more complicated if possible at all
-    if block_id != "latest":
-        # By RPC here we should return `24 invalid block id` but in this case I believe it's more
-        # descriptive to the user to use a custom error
-        raise RpcError(code=-1, message="Calls with block_id != 'latest' are not supported currently.")
+    assert_block_id_is_latest(block_id)
 
     if not state.starknet_wrapper.contracts.is_deployed(int(request["contract_address"], 16)):
         raise RpcError(code=20, message="Contract not found")
@@ -437,16 +440,6 @@ async def call(request: RpcInvokeTransaction, block_id: BlockId) -> List[Felt]:
         raise RpcError(code=-1, message=ex.message) from ex
 
 
-class FeeEstimate(TypedDict):
-    """
-    Fee estimate TypedDict for rpc
-    """
-    overall_fee: int
-    unit: str
-    gas_price: int
-    gas_usage: int
-
-
 class RpcFeeEstimate(TypedDict):
     """
     Fee estimate TypedDict for rpc
@@ -456,7 +449,7 @@ class RpcFeeEstimate(TypedDict):
     overall_fee: NumAsHex
 
 
-def rpc_fee_estimate(fee_estimate: FeeEstimate) -> dict:
+def rpc_fee_estimate(fee_estimate: dict) -> dict:
     """
     Convert gateway estimate_fee response to rpc_fee_estimate
     """
@@ -472,17 +465,9 @@ async def estimate_fee(request: RpcInvokeTransaction, block_id: BlockId) -> dict
     """
     Estimate the fee for a given StarkNet transaction
     """
-    if block_id != "latest":
-        raise RpcError(code=-1, message="Calls with block_id != 'latest' are not supported currently.")
+    assert_block_id_is_latest(block_id)
 
-    invoke_function = InvokeFunction(
-        contract_address=int(request["contract_address"], 16),
-        entry_point_selector=int(request["entry_point_selector"], 16),
-        calldata=[int(data, 16) for data in request["calldata"]],
-        max_fee=int(request["max_fee"], 16),
-        version=int(request["version"], 16),
-        signature=[int(data, 16) for data in request["signature"]],
-    )
+    invoke_function = make_invoke_function(request)
 
     fee_response = await state.starknet_wrapper.calculate_actual_fee(invoke_function)
     return rpc_fee_estimate(fee_response)
@@ -527,7 +512,7 @@ async def chain_id() -> str:
     return hex(chain)
 
 
-async def pending_transactions() -> List[Union[RpcInvokeTransaction, RpcDeclareTransaction, RpcDeployTransaction]]:
+async def pending_transactions() -> List[RpcTransaction]:
     """
     Returns the transactions in the transaction pool, recognized by this sequencer
     """
@@ -611,12 +596,14 @@ async def add_declare_transaction(contract_class: RpcContractClass, version: str
     )
 
 
-async def add_deploy_transaction(contract_address_salt: str, constructor_calldata: List[str], contract_definition: RpcContractClass) -> dict:
+async def add_deploy_transaction(contract_address_salt: str, constructor_calldata: List[str],
+                                 contract_definition: RpcContractClass) -> dict:
     """
     Submit a new deploy contract transaction
     """
     try:
-        decompressed_program = decompress_program({"contract_definition": contract_definition}, False)["contract_definition"]
+        decompressed_program = decompress_program({"contract_definition": contract_definition}, False)[
+            "contract_definition"]
         contract_class = ContractClass.load(decompressed_program)
         contract_class = dataclasses.replace(contract_class, abi=[])
     except (StarkException, TypeError, MarshmallowError) as ex:
@@ -644,9 +631,9 @@ def make_invoke_function(request_body: dict) -> InvokeFunction:
         contract_address=int(request_body["contract_address"], 16),
         entry_point_selector=int(request_body["entry_point_selector"], 16),
         calldata=[int(data, 16) for data in request_body["calldata"]],
-        max_fee=0,
-        version=0,
-        signature=[],
+        max_fee=int(request_body["max_fee"], 16) if "max_fee" in request_body else 0,
+        version=int(request_body["version"], 16) if "version" in request_body else 0,
+        signature=[int(data, 16) for data in request_body["signature"]] if "signature" in request_body else [],
     )
 
 
@@ -709,21 +696,12 @@ async def rpc_block(block: StarknetBlock, requested_scope: Optional[str] = "TXN_
     """
     Convert gateway block to rpc block
     """
-    async def transactions() -> List[Union[RpcInvokeTransaction, RpcDeclareTransaction]]:
+    async def transactions() -> List[RpcTransaction]:
         # pylint: disable=no-member
         return [rpc_transaction(tx) for tx in block.transactions]
 
     async def transaction_hashes() -> List[str]:
         return [tx["transaction_hash"] for tx in await transactions()]
-
-    async def full_transactions() -> list[dict[str, Any]]:
-        transactions_and_receipts = []
-        _transactions = await transactions()
-        for transaction in _transactions:
-            receipt = await get_transaction_receipt(transaction["txn_hash"])
-            combined = {**receipt, **transaction}
-            transactions_and_receipts.append(combined)
-        return transactions_and_receipts
 
     def new_root() -> str:
         # pylint: disable=no-member
@@ -732,7 +710,6 @@ async def rpc_block(block: StarknetBlock, requested_scope: Optional[str] = "TXN_
     mapping: dict[str, Callable] = {
         "TXN_HASH": transaction_hashes,
         "FULL_TXNS": transactions,
-        "FULL_TXN_AND_RECEIPTS": full_transactions,
     }
     transactions: list = await mapping[requested_scope]()
 
@@ -740,7 +717,7 @@ async def rpc_block(block: StarknetBlock, requested_scope: Optional[str] = "TXN_
     config = devnet_state.general_config
 
     block: RpcBlock = {
-        "status": block.status.name,
+        "status": rpc_block_status(block.status.name),
         "block_hash": rpc_felt(block.block_hash),
         "parent_hash": rpc_felt(block.parent_block_hash) or "0x0",
         "block_number": block.block_number if block.block_number is not None else 0,
@@ -876,7 +853,7 @@ class RpcDeployTransactionResult(TypedDict):
     contract_address: str
 
 
-def rpc_transaction(transaction: TransactionSpecificInfo) -> Union[RpcInvokeTransaction, RpcDeclareTransaction, RpcDeployTransaction]:
+def rpc_transaction(transaction: TransactionSpecificInfo) -> RpcTransaction:
     """
     Convert gateway transaction to rpc transaction
     """
@@ -920,23 +897,8 @@ class RpcBaseTransactionReceipt(TypedDict):
     # Common
     transaction_hash: TxnHash
     actual_fee: Felt
-    status: str
-    statusData: Optional[str]
-
-
-class RpcPendingReceipt(TypedDict):
-    """
-    TypedDict for rpc pending transaction receipt
-    """
-    messages_sent: List[MessageToL1]
-    l1_origin_message: Optional[MessageToL2]
-    events: List[Event]
-    # Common
-    transaction_hash: TxnHash
-    actual_fee: Felt
-
     status: TxnStatus
-    statusData: Optional[str]
+    status_data: Optional[str]
     block_hash: BlockHash
     block_number: BlockNumber
 
@@ -952,7 +914,7 @@ class RpcInvokeReceipt(TypedDict):
     transaction_hash: TxnHash
     actual_fee: Felt
     status: TxnStatus
-    statusData: Optional[str]
+    status_data: Optional[str]
     block_hash: BlockHash
     block_number: BlockNumber
 
@@ -965,7 +927,7 @@ class RpcDeclareReceipt(TypedDict):
     transaction_hash: TxnHash
     actual_fee: Felt
     status: TxnStatus
-    statusData: Optional[str]
+    status_data: Optional[str]
     block_hash: BlockHash
     block_number: BlockNumber
 
@@ -978,7 +940,7 @@ class RpcDeployReceipt(TypedDict):
     transaction_hash: TxnHash
     actual_fee: Felt
     status: TxnStatus
-    statusData: Optional[str]
+    status_data: Optional[str]
     block_hash: BlockHash
     block_number: BlockNumber
 
@@ -1023,10 +985,12 @@ def rpc_invoke_receipt(txr: TransactionReceipt) -> RpcInvokeReceipt:
         "messages_sent": l2_to_l1_messages(),
         "l1_origin_message": l1_to_l2_message(),
         "events": events(),
-        "txn_hash": base_receipt["txn_hash"],
+        "transaction_hash": base_receipt["transaction_hash"],
         "status": base_receipt["status"],
-        "statusData": base_receipt["statusData"],
+        "status_data": base_receipt["status_data"],
         "actual_fee": base_receipt["actual_fee"],
+        "block_hash": base_receipt["block_hash"],
+        "block_number": base_receipt["block_number"],
     }
     return receipt
 
@@ -1035,17 +999,10 @@ def rpc_declare_receipt(txr) -> RpcDeclareReceipt:
     """
     Convert rpc declare transaction receipt to rpc format
     """
-    base_receipt = rpc_base_transaction_receipt(txr)
-    receipt: RpcDeclareReceipt = {
-        "txn_hash": base_receipt["txn_hash"],
-        "status": base_receipt["status"],
-        "statusData": base_receipt["statusData"],
-        "actual_fee": base_receipt["actual_fee"],
-    }
-    return receipt
+    return rpc_base_transaction_receipt(txr)
 
 
-def rpc_deploy_receipt(txr) -> RpcBaseTransactionReceipt:
+def rpc_deploy_receipt(txr) -> RpcDeployReceipt:
     """
     Convert rpc deploy transaction receipt to rpc format
     """
@@ -1077,10 +1034,12 @@ def rpc_base_transaction_receipt(txr: TransactionReceipt) -> RpcBaseTransactionR
         return None
 
     receipt: RpcBaseTransactionReceipt = {
-        "txn_hash": rpc_felt(txr.transaction_hash),
-        "status": status(),
-        "statusData": status_data(),
+        "transaction_hash": rpc_felt(txr.transaction_hash),
         "actual_fee": rpc_felt(txr.actual_fee or 0),
+        "status": status(),
+        "status_data": status_data(),
+        "block_hash": rpc_felt(txr.block_hash),
+        "block_number": txr.block_number,
     }
     return receipt
 

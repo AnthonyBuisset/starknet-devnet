@@ -8,7 +8,7 @@ from typing import List
 
 from test.shared import INCORRECT_GENESIS_BLOCK_HASH
 from starkware.starknet.definitions import constants
-from starknet_devnet.blueprints.rpc import RpcContractClass
+from starknet_devnet.blueprints.rpc import RpcContractClass, rpc_txn_type
 
 from .rpc_utils import rpc_call, get_block_with_transaction, pad_zero
 
@@ -31,7 +31,7 @@ def test_get_transaction_by_hash_deploy(deploy_info):
         "transaction_hash": pad_zero(transaction_hash),
         "class_hash": pad_zero(block_tx["class_hash"]),
         "version": "0x0",
-        "type": block_tx["type"],
+        "type": rpc_txn_type(block_tx["type"]),
         "contract_address": pad_zero(contract_address),
         "contract_address_salt": pad_zero(block_tx["contract_address_salt"]),
         "constructor_calldata": [],
@@ -64,7 +64,7 @@ def test_get_transaction_by_hash_invoke(deploy_info, invoke_info):
         "version": "0x0",
         "signature": signature,
         "nonce": "0x0",
-        "type": block_tx["type"],
+        "type": rpc_txn_type(block_tx["type"]),
         "contract_address": contract_address,
         "entry_point_selector": pad_zero(entry_point_selector),
         "calldata": calldata,
@@ -88,11 +88,11 @@ def test_get_transaction_by_hash_declare(declare_info):
 
     assert transaction == {
         "transaction_hash": pad_zero(transaction_hash),
-        "max_fee": block_tx["max_fee"],
-        "version": block_tx["version"],
+        "max_fee": pad_zero(block_tx["max_fee"]),
+        "version": pad_zero(block_tx["version"]),
         "signature": signature,
         "nonce": pad_zero(block_tx["nonce"]),
-        "type": block_tx["type"],
+        "type": rpc_txn_type(block_tx["type"]),
         "class_hash": pad_zero(block_tx["class_hash"]),
         "sender_address": pad_zero(block_tx["sender_address"]),
     }
@@ -136,11 +136,11 @@ def test_get_transaction_by_block_id_and_index(deploy_info):
 
     assert transaction == {
         "class_hash": pad_zero(block_tx["class_hash"]),
-        "constructor_calldata": block_tx["constructor_calldata"],
+        "constructor_calldata": [pad_zero(tx) for tx in block_tx["constructor_calldata"]],
         "contract_address": pad_zero(contract_address),
         "contract_address_salt": pad_zero(block_tx["contract_address_salt"]),
         "transaction_hash": pad_zero(transaction_hash),
-        "type": block_tx["type"],
+        "type": rpc_txn_type(block_tx["type"]),
         "version": "0x0",
     }
 
@@ -191,6 +191,7 @@ def test_get_declare_transaction_receipt(declare_info):
     Get transaction receipt
     """
     transaction_hash: str = declare_info["transaction_hash"]
+    block = get_block_with_transaction(transaction_hash)
 
     resp = rpc_call(
         "starknet_getTransactionReceipt", params={
@@ -200,10 +201,12 @@ def test_get_declare_transaction_receipt(declare_info):
     receipt = resp["result"]
 
     assert receipt == {
-        "txn_hash": pad_zero(transaction_hash),
+        "transaction_hash": pad_zero(transaction_hash),
         "status": "ACCEPTED_ON_L2",
-        "statusData": None,
-        "actual_fee": "0x0"
+        "status_data": None,
+        "actual_fee": "0x0",
+        "block_hash": pad_zero(block["block_hash"]),
+        "block_number": block["block_number"],
     }
 
 
@@ -222,7 +225,7 @@ def test_get_invoke_transaction_receipt(invoke_info):
 
     # Standard == receipt dict test cannot be done here, because invoke transaction fails since no contracts
     # are actually deployed on devnet, when running test without @devnet_in_background
-    assert receipt["txn_hash"] == pad_zero(transaction_hash)
+    assert receipt["transaction_hash"] == pad_zero(transaction_hash)
     assert receipt["actual_fee"] == "0x0"
     assert receipt["l1_origin_message"] is None
     assert receipt["events"] == []
@@ -250,6 +253,7 @@ def test_get_deploy_transaction_receipt(deploy_info):
     Get transaction receipt
     """
     transaction_hash: str = deploy_info["transaction_hash"]
+    block = get_block_with_transaction(transaction_hash)
 
     resp = rpc_call(
         "starknet_getTransactionReceipt", params={
@@ -259,10 +263,12 @@ def test_get_deploy_transaction_receipt(deploy_info):
     receipt = resp["result"]
 
     assert receipt == {
-        "txn_hash": pad_zero(transaction_hash),
+        "transaction_hash": pad_zero(transaction_hash),
         "status": "ACCEPTED_ON_L2",
-        "statusData": None,
-        "actual_fee": "0x0"
+        "status_data": None,
+        "actual_fee": "0x0",
+        "block_hash": pad_zero(block["block_hash"]),
+        "block_number": block["block_number"],
     }
 
 

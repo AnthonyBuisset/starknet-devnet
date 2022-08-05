@@ -14,8 +14,8 @@ import pytest
 from starkware.starknet.services.api.contract_class import ContractClass
 from starkware.starknet.services.api.gateway.transaction import Transaction, Deploy
 
-from .rpc_utils import gateway_call
-
+from starknet_devnet.blueprints.rpc import BlockNumberDict, BlockHashDict
+from .rpc_utils import gateway_call, get_block_with_transaction
 
 DEPLOY_CONTENT = load_file_content("deploy_rpc.json")
 INVOKE_CONTENT = load_file_content("invoke_rpc.json")
@@ -95,3 +95,24 @@ def fixture_declare_content() -> dict:
     Declare content JSON object
     """
     return json.loads(DECLARE_CONTENT)
+
+
+@pytest.fixture(name="gateway_block", scope="module")
+def fixture_gateway_block(deploy_info) -> dict:
+    """
+    Block with Deploy transaction
+    """
+    return get_block_with_transaction(deploy_info["transaction_hash"])
+
+
+@pytest.fixture(name="block_id", scope="module")
+def fixture_block_id(gateway_block, request) -> dict:
+    """
+    BlockId of gateway_block depending on type in request
+    """
+    block_id_map = {
+        "hash": BlockNumberDict(block_number=gateway_block["block_number"]),
+        "number": BlockHashDict(block_hash=gateway_block["block_hash"]),
+        "tag": "latest",
+    }
+    return block_id_map[request.param]

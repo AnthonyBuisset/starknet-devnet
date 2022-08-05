@@ -1,6 +1,7 @@
 """
 RPC routes
 API Specification v0.1.0
+https://github.com/starkware-libs/starknet-specs/releases/tag/v0.1.0
 """
 # pylint: disable=too-many-lines
 
@@ -41,8 +42,6 @@ from ..util import StarknetDevnetException
 
 rpc = Blueprint("rpc", __name__, url_prefix="/rpc")
 
-PROTOCOL_VERSION = "0.9.1"
-
 Felt = str
 
 BlockHash = Felt
@@ -77,7 +76,7 @@ NumAsHex = str
 TxnType = Literal["DECLARE", "DEPLOY", "INVOKE"]
 
 
-def rpc_txn_type(transaction_type: str) -> str:
+def rpc_txn_type(transaction_type: str) -> TxnType:
     """
     Convert gateway transaction type to RPC TxnType
     """
@@ -100,7 +99,7 @@ class RpcBlock(TypedDict):
     new_root: Felt
     timestamp: int
     sequencer_address: Felt
-    transactions: Union[List[str], List[dict]]
+    transactions: Union[List[str], List[RpcTransaction]]
 
 
 class RpcInvokeTransaction(TypedDict):
@@ -517,14 +516,6 @@ async def pending_transactions() -> List[RpcTransaction]:
     Returns the transactions in the transaction pool, recognized by this sequencer
     """
     raise NotImplementedError()
-
-
-async def protocol_version() -> str:
-    """
-    Returns the current starknet protocol version identifier, as supported by this sequencer
-    """
-    protocol_hex = PROTOCOL_VERSION.encode("utf-8").hex()
-    return "0x" + protocol_hex
 
 
 async def syncing() -> dict:
@@ -1038,7 +1029,7 @@ def rpc_base_transaction_receipt(txr: TransactionReceipt) -> RpcBaseTransactionR
         "actual_fee": rpc_felt(txr.actual_fee or 0),
         "status": status(),
         "status_data": status_data(),
-        "block_hash": rpc_felt(txr.block_hash),
+        "block_hash": rpc_felt(txr.block_hash) if txr.block_hash is not None else txr.block_hash,
         "block_number": txr.block_number,
     }
     return receipt
@@ -1120,7 +1111,6 @@ def parse_body(body: dict) -> Tuple[Callable, Union[List, dict], int]:
         "blockHashAndNumber": block_hash_and_number,
         "chainId": chain_id,
         "pendingTransactions": pending_transactions,
-        "protocolVersion": protocol_version,
         "syncing": syncing,
         "getEvents": get_events,
         "getNonce": get_nonce,

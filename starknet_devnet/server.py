@@ -8,7 +8,7 @@ import asyncio
 
 from flask import Flask, jsonify
 from flask_cors import CORS
-import meinheld
+from gunicorn.app.base import BaseApplication
 from starkware.starkware_utils.error_handling import StarkException
 
 from .blueprints.base import base
@@ -87,6 +87,43 @@ def set_gas_price(args):
     """Assign gas_price"""
     state.starknet_wrapper.set_gas_price(args.gas_price)
 
+# We don't need init method here.
+# pylint: disable=W0223
+class Devnet(BaseApplication):
+    """Our Gunicorn application."""
+
+    def __init__(self, application, args):
+        self.args = args
+        self.application = application
+        super().__init__()
+
+    def load_config(self):
+        self.cfg.set("bind", f"{self.args.host}:{self.args.port}")
+        self.cfg.set("workers", 1)
+        self.cfg.set("logconfig_dict", {
+            "loggers": {
+                "gunicorn.error": {
+                    # Disable info messages like "Starting gunicorn"
+                    "level": "WARNING",
+                    "handlers": ["error_console"],
+                    "propagate": False,
+                    "qualname": "gunicorn.error"
+                },
+
+                "gunicorn.access": {
+                    "level": "INFO",
+                    # Log access to stderr to maintain backward compatibility
+                    "handlers": ["error_console"],
+                    "propagate": False,
+                    "qualname": "gunicorn.access"
+                }
+            },
+        })
+
+    def load(self):
+        return self.application
+
+
 def main():
     """Runs the server."""
 
@@ -106,9 +143,8 @@ def main():
     asyncio.run(state.starknet_wrapper.initialize())
 
     try:
-        meinheld.listen((args.host, args.port))
         print(f" * Listening on http://{args.host}:{args.port}/ (Press CTRL+C to quit)")
-        meinheld.run(app)
+        Devnet(app, args).run()
     except KeyboardInterrupt:
         pass
     finally:

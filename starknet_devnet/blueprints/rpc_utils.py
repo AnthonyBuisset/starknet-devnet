@@ -52,11 +52,28 @@ class BlockNumberDict(TypedDict):
 BlockId = Union[BlockHashDict, BlockNumberDict, BlockTag]
 
 TxnStatus = Literal["PENDING", "ACCEPTED_ON_L2", "ACCEPTED_ON_L1", "REJECTED"]
+
 RpcBlockStatus = Literal["PENDING", "ACCEPTED_ON_L2", "ACCEPTED_ON_L1", "REJECTED"]
+
+
+def rpc_block_status(block_status: BlockStatus) -> RpcBlockStatus:
+    """
+    Convert gateway BlockStatus to RpcBlockStatus
+    """
+    block_status_map = {
+        "PENDING": "PENDING",
+        "ABORTED": "REJECTED",
+        "REVERTED": "REJECTED",
+        "ACCEPTED_ON_L2": "ACCEPTED_ON_L2",
+        "ACCEPTED_ON_L1": "ACCEPTED_ON_L1"
+    }
+    return block_status_map[block_status]
+
 
 TxnHash = Felt
 Address = Felt
 NumAsHex = str
+
 # Pending transactions will not be supported since it
 # doesn't make much sense with the current implementation of devnet
 TxnType = Literal["DECLARE", "DEPLOY", "INVOKE"]
@@ -86,6 +103,43 @@ class RpcBlock(TypedDict):
     timestamp: int
     sequencer_address: Felt
     transactions: Union[List[str], List[RpcTransaction]]
+
+
+async def rpc_block(block: StarknetBlock, requested_scope: Optional[str] = "TXN_HASH") -> RpcBlock:
+    """
+    Convert gateway block to rpc block
+    """
+    async def transactions() -> List[RpcTransaction]:
+        # pylint: disable=no-member
+        return [rpc_transaction(tx) for tx in block.transactions]
+
+    async def transaction_hashes() -> List[str]:
+        return [tx["transaction_hash"] for tx in await transactions()]
+
+    def new_root() -> str:
+        # pylint: disable=no-member
+        return rpc_root(block.state_root.hex())
+
+    mapping: dict[str, Callable] = {
+        "TXN_HASH": transaction_hashes,
+        "FULL_TXNS": transactions,
+    }
+    transactions: list = await mapping[requested_scope]()
+
+    devnet_state = state.starknet_wrapper.get_state()
+    config = devnet_state.general_config
+
+    block: RpcBlock = {
+        "status": rpc_block_status(block.status.name),
+        "block_hash": rpc_felt(block.block_hash),
+        "parent_hash": rpc_felt(block.parent_block_hash or 0),
+        "block_number": block.block_number if block.block_number is not None else 0,
+        "new_root": new_root(),
+        "timestamp": block.timestamp,
+        "sequencer_address": hex(config.sequencer_address),
+        "transactions": transactions,
+    }
+    return block
 
 
 class RpcInvokeTransaction(TypedDict):
@@ -195,58 +249,6 @@ def rpc_deploy_transaction(transaction: DeploySpecificInfo) -> RpcDeployTransact
     return txn
 
 
-def block_tag_to_block_number(block_id: BlockId) -> BlockId:
-    """
-    Changes block_id from tag to dict with "block_number" field
-    """
-    if isinstance(block_id, str):
-        if block_id == "latest":
-            return {"block_number": state.starknet_wrapper.blocks.get_number_of_blocks() - 1}
-
-        if block_id == "pending":
-            raise RpcError(code=-1, message="Calls with block_hash == 'pending' are not supported currently.")
-
-        raise RpcError(code=24, message="Invalid block id")
-
-    return block_id
-
-
-def get_block_by_block_id(block_id: BlockId) -> dict:
-    """
-    Get block using different method depending on block_id type
-    """
-    block_id = block_tag_to_block_number(block_id)
-
-    try:
-        if "block_hash" in block_id:
-            return state.starknet_wrapper.blocks.get_by_hash(block_hash=block_id["block_hash"])
-        return state.starknet_wrapper.blocks.get_by_number(block_number=block_id["block_number"])
-    except StarknetDevnetException as ex:
-        raise RpcError(code=24, message="Invalid block id") from ex
-
-
-def assert_block_id_is_latest(block_id: BlockId) -> None:
-    """
-    Assert block_id is "latest" and throw RpcError otherwise
-    """
-    if block_id != "latest":
-        raise RpcError(code=-1, message="Calls with block_id != 'latest' are not supported currently.")
-
-
-def rpc_block_status(block_status: BlockStatus) -> RpcBlockStatus:
-    """
-    Convert gateway BlockStatus to RpcBlockStatus
-    """
-    block_status_map = {
-        "PENDING": "PENDING",
-        "ABORTED": "REJECTED",
-        "REVERTED": "REJECTED",
-        "ACCEPTED_ON_L2": "ACCEPTED_ON_L2",
-        "ACCEPTED_ON_L1": "ACCEPTED_ON_L1"
-    }
-    return block_status_map[block_status]
-
-
 class RpcFeeEstimate(TypedDict):
     """
     Fee estimate TypedDict for rpc
@@ -335,43 +337,6 @@ def rpc_contract_class(contract_class: ContractClass) -> RpcContractClass:
         "entry_points_by_type": entry_points_by_type()
     }
     return _contract_class
-
-
-async def rpc_block(block: StarknetBlock, requested_scope: Optional[str] = "TXN_HASH") -> RpcBlock:
-    """
-    Convert gateway block to rpc block
-    """
-    async def transactions() -> List[RpcTransaction]:
-        # pylint: disable=no-member
-        return [rpc_transaction(tx) for tx in block.transactions]
-
-    async def transaction_hashes() -> List[str]:
-        return [tx["transaction_hash"] for tx in await transactions()]
-
-    def new_root() -> str:
-        # pylint: disable=no-member
-        return rpc_root(block.state_root.hex())
-
-    mapping: dict[str, Callable] = {
-        "TXN_HASH": transaction_hashes,
-        "FULL_TXNS": transactions,
-    }
-    transactions: list = await mapping[requested_scope]()
-
-    devnet_state = state.starknet_wrapper.get_state()
-    config = devnet_state.general_config
-
-    block: RpcBlock = {
-        "status": rpc_block_status(block.status.name),
-        "block_hash": rpc_felt(block.block_hash),
-        "parent_hash": rpc_felt(block.parent_block_hash or 0),
-        "block_number": block.block_number if block.block_number is not None else 0,
-        "new_root": new_root(),
-        "timestamp": block.timestamp,
-        "sequencer_address": hex(config.sequencer_address),
-        "transactions": transactions,
-    }
-    return block
 
 
 class RpcStorageDiff(TypedDict):
@@ -701,6 +666,44 @@ def rpc_transaction_receipt(txr: TransactionReceipt) -> dict:
     transaction = state.starknet_wrapper.transactions.get_transaction(hex(txr.transaction_hash)).transaction
     tx_type = transaction.tx_type
     return tx_mapping[tx_type](txr)
+
+
+def block_tag_to_block_number(block_id: BlockId) -> BlockId:
+    """
+    Changes block_id from tag to dict with "block_number" field
+    """
+    if isinstance(block_id, str):
+        if block_id == "latest":
+            return {"block_number": state.starknet_wrapper.blocks.get_number_of_blocks() - 1}
+
+        if block_id == "pending":
+            raise RpcError(code=-1, message="Calls with block_hash == 'pending' are not supported currently.")
+
+        raise RpcError(code=24, message="Invalid block id")
+
+    return block_id
+
+
+def get_block_by_block_id(block_id: BlockId) -> dict:
+    """
+    Get block using different method depending on block_id type
+    """
+    block_id = block_tag_to_block_number(block_id)
+
+    try:
+        if "block_hash" in block_id:
+            return state.starknet_wrapper.blocks.get_by_hash(block_hash=block_id["block_hash"])
+        return state.starknet_wrapper.blocks.get_by_number(block_number=block_id["block_number"])
+    except StarknetDevnetException as ex:
+        raise RpcError(code=24, message="Invalid block id") from ex
+
+
+def assert_block_id_is_latest(block_id: BlockId) -> None:
+    """
+    Assert block_id is "latest" and throw RpcError otherwise
+    """
+    if block_id != "latest":
+        raise RpcError(code=-1, message="Calls with block_id != 'latest' are not supported currently.")
 
 
 def rpc_felt(value: int) -> str:

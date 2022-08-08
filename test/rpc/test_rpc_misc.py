@@ -7,7 +7,7 @@ from __future__ import annotations
 from starkware.starknet.public.abi import get_storage_var_address
 from starkware.starknet.core.os.class_hash import compute_class_hash
 
-from starknet_devnet.blueprints.rpc import BlockHashDict
+from starknet_devnet.blueprints.rpc_utils import BlockHashDict
 from starknet_devnet.general_config import DEFAULT_GENERAL_CONFIG
 
 from .rpc_utils import rpc_call, gateway_call, get_block_with_transaction, pad_zero

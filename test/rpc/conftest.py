@@ -14,7 +14,7 @@ import pytest
 from starkware.starknet.services.api.contract_class import ContractClass
 from starkware.starknet.services.api.gateway.transaction import Transaction, Deploy
 
-from starknet_devnet.blueprints.rpc import BlockNumberDict, BlockHashDict
+from starknet_devnet.blueprints.rpc_utils import BlockNumberDict, BlockHashDict
 from .rpc_utils import gateway_call, get_block_with_transaction
 
 DEPLOY_CONTENT = load_file_content("deploy_rpc.json")

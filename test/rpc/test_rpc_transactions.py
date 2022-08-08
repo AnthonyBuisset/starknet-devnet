@@ -8,7 +8,7 @@ from typing import List
 
 from test.shared import INCORRECT_GENESIS_BLOCK_HASH
 from starkware.starknet.definitions import constants
-from starknet_devnet.blueprints.rpc import RpcContractClass, rpc_txn_type, rpc_felt
+from starknet_devnet.blueprints.rpc_utils import rpc_txn_type, rpc_felt, RpcContractClass
 
 from .rpc_utils import rpc_call, get_block_with_transaction, pad_zero
 

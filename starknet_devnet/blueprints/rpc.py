@@ -467,9 +467,21 @@ async def estimate_fee(request: RpcInvokeTransaction, block_id: BlockId) -> dict
     """
     assert_block_id_is_latest(block_id)
 
+    if not state.starknet_wrapper.contracts.is_deployed(int(request["contract_address"], 16)):
+        raise RpcError(code=20, message="Contract not found")
+
     invoke_function = make_invoke_function(request)
 
-    fee_response = await state.starknet_wrapper.calculate_actual_fee(invoke_function)
+    try:
+        fee_response = await state.starknet_wrapper.calculate_actual_fee(invoke_function)
+    except StarknetDevnetException as ex:
+        raise RpcError(code=-1, message=ex.message) from ex
+    except StarkException as ex:
+        if f"Entry point {request['entry_point_selector']} not found" in ex.message:
+            raise RpcError(code=21, message="Invalid message selector") from ex
+        if "While handling calldata" in ex.message:
+            raise RpcError(code=22, message="Invalid call data") from ex
+        raise RpcError(code=-1, message=ex.message) from ex
     return rpc_fee_estimate(fee_response)
 
 

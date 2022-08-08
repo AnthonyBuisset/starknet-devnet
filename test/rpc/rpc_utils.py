@@ -54,5 +54,6 @@ def pad_zero(felt: str) -> str:
     """
     Convert felt with format `0xValue` to format `0x0Value`
     """
-    felt = felt.lstrip("0x")
-    return "0x0" + felt
+    if felt == "0x0":
+        return "0x00"
+    return "0x0" + felt.lstrip("0x")

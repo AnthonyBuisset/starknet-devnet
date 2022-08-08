@@ -74,7 +74,7 @@ def test_get_state_update(deploy_info, invoke_info, contract_class):
             {
                 "address": contract_address,
                 "key": pad_zero(hex(get_storage_var_address("balance"))),
-                "value": storage,
+                "value": pad_zero(storage),
             }
         ],
         "deployed_contracts": [],

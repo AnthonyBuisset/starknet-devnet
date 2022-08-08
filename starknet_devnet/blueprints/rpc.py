@@ -577,9 +577,10 @@ async def add_declare_transaction(contract_class: RpcContractClass, version: Num
     Submit a new class declaration transaction
     """
     try:
-        decompressed_program = decompress_program({"contract_class": contract_class}, False)["contract_class"]
-        contract_definition = ContractClass.load(decompressed_program)
+        decompressed_program = decompress_program({"contract_class": contract_class}, False)
+        decompressed_program = decompressed_program["contract_class"]
 
+        contract_definition = ContractClass.load(decompressed_program)
         # Replace None with [] in abi key to avoid Missing Abi exception
         contract_definition = dataclasses.replace(contract_definition, abi=[])
     except (StarkException, TypeError, MarshmallowError) as ex:
@@ -725,7 +726,7 @@ async def rpc_block(block: StarknetBlock, requested_scope: Optional[str] = "TXN_
     block: RpcBlock = {
         "status": rpc_block_status(block.status.name),
         "block_hash": rpc_felt(block.block_hash),
-        "parent_hash": rpc_felt(block.parent_block_hash) or "0x0",
+        "parent_hash": rpc_felt(block.parent_block_hash or 0),
         "block_number": block.block_number if block.block_number is not None else 0,
         "new_root": new_root(),
         "timestamp": block.timestamp,
@@ -1093,6 +1094,8 @@ def rpc_felt(value: int) -> str:
     """
     Convert integer to 0x0 prefixed felt
     """
+    if value == 0:
+        return "0x00"
     return "0x0" + hex(value).lstrip("0x")
 
 

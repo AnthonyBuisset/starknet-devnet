@@ -30,7 +30,7 @@ def test_get_transaction_by_hash_deploy(deploy_info):
     assert transaction == {
         "transaction_hash": pad_zero(transaction_hash),
         "class_hash": pad_zero(block_tx["class_hash"]),
-        "version": "0x0",
+        "version": hex(0),
         "type": rpc_txn_type(block_tx["type"]),
         "contract_address": pad_zero(contract_address),
         "contract_address_salt": pad_zero(block_tx["contract_address_salt"]),
@@ -61,9 +61,9 @@ def test_get_transaction_by_hash_invoke(deploy_info, invoke_info):
     assert transaction == {
         "transaction_hash": pad_zero(transaction_hash),
         "max_fee": pad_zero(block_tx["max_fee"]),
-        "version": "0x0",
+        "version": hex(0),
         "signature": signature,
-        "nonce": "0x0",
+        "nonce": pad_zero(hex(0)),
         "type": rpc_txn_type(block_tx["type"]),
         "contract_address": contract_address,
         "entry_point_selector": pad_zero(entry_point_selector),
@@ -89,7 +89,7 @@ def test_get_transaction_by_hash_declare(declare_info):
     assert transaction == {
         "transaction_hash": pad_zero(transaction_hash),
         "max_fee": pad_zero(block_tx["max_fee"]),
-        "version": pad_zero(block_tx["version"]),
+        "version": block_tx["version"],
         "signature": signature,
         "nonce": pad_zero(block_tx["nonce"]),
         "type": rpc_txn_type(block_tx["type"]),
@@ -141,7 +141,7 @@ def test_get_transaction_by_block_id_and_index(deploy_info):
         "contract_address_salt": pad_zero(block_tx["contract_address_salt"]),
         "transaction_hash": pad_zero(transaction_hash),
         "type": rpc_txn_type(block_tx["type"]),
-        "version": "0x0",
+        "version": hex(0),
     }
 
 
@@ -204,7 +204,7 @@ def test_get_declare_transaction_receipt(declare_info):
         "transaction_hash": pad_zero(transaction_hash),
         "status": "ACCEPTED_ON_L2",
         "status_data": None,
-        "actual_fee": "0x0",
+        "actual_fee": pad_zero(hex(0)),
         "block_hash": pad_zero(block["block_hash"]),
         "block_number": block["block_number"],
     }
@@ -226,7 +226,7 @@ def test_get_invoke_transaction_receipt(invoke_info):
     # Standard == receipt dict test cannot be done here, because invoke transaction fails since no contracts
     # are actually deployed on devnet, when running test without @devnet_in_background
     assert receipt["transaction_hash"] == pad_zero(transaction_hash)
-    assert receipt["actual_fee"] == "0x0"
+    assert receipt["actual_fee"] == pad_zero(hex(0))
     assert receipt["l1_origin_message"] is None
     assert receipt["events"] == []
     assert receipt["messages_sent"] == []
@@ -238,7 +238,7 @@ def test_get_transaction_receipt_on_incorrect_hash(deploy_info):
     """
     ex = rpc_call(
         "starknet_getTransactionReceipt", params={
-            "transaction_hash": "0x0"
+            "transaction_hash": rpc_felt(0)
         }
     )
 
@@ -266,7 +266,7 @@ def test_get_deploy_transaction_receipt(deploy_info):
         "transaction_hash": pad_zero(transaction_hash),
         "status": "ACCEPTED_ON_L2",
         "status_data": None,
-        "actual_fee": "0x0",
+        "actual_fee": pad_zero(hex(0)),
         "block_hash": pad_zero(block["block_hash"]),
         "block_number": block["block_number"],
     }

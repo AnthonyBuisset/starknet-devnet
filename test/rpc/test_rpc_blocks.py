@@ -81,7 +81,7 @@ def test_get_block_with_txs(deploy_info, gateway_block, block_id):
         "transactions": [
             {
                 "class_hash": pad_zero(block_tx["class_hash"]),
-                "constructor_calldata": block_tx["constructor_calldata"],
+                "constructor_calldata": [pad_zero(data) for data in block_tx["constructor_calldata"]],
                 "contract_address": pad_zero(block_tx["contract_address"]),
                 "contract_address_salt": pad_zero(block_tx["contract_address_salt"]),
                 "transaction_hash": pad_zero(block_tx["transaction_hash"]),

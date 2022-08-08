@@ -1,6 +1,8 @@
 """
 Tests RPC contract class
 """
+from starkware.starknet.services.api.gateway.transaction_utils import decompress_program
+
 from starknet_devnet.blueprints.rpc import BlockId
 from .rpc_utils import rpc_call
 
@@ -24,6 +26,7 @@ def test_get_class(class_hash):
         "L1_HANDLER": []
     }
     assert isinstance(contract_class["program"], str)
+    decompress_program({"contract_class": contract_class}, False)
 
 
 def test_get_class_hash_at(deploy_info, class_hash):
@@ -64,3 +67,4 @@ def test_get_class_at(deploy_info):
         "L1_HANDLER": []
     }
     assert isinstance(contract_class["program"], str)
+    decompress_program({"contract_class": contract_class}, False)

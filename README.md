@@ -188,7 +188,7 @@ Response:
 {
   "id": 0,
   "jsonrpc": "2.0",
-  "result": "0x302e382e30"
+  "result": 1
 }
 ```
 

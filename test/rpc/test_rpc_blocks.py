@@ -1,12 +1,12 @@
 """
 Tests RPC blocks
 """
+
 from test.shared import GENESIS_BLOCK_NUMBER, INCORRECT_GENESIS_BLOCK_HASH
 
 import pytest
-
+from starknet_devnet.blueprints.rpc.structures.types import BlockNumberDict, BlockHashDict, rpc_txn_type
 from starknet_devnet.general_config import DEFAULT_GENERAL_CONFIG
-from starknet_devnet.blueprints.rpc_utils import BlockNumberDict, BlockHashDict, rpc_txn_type
 
 from .rpc_utils import rpc_call, pad_zero, gateway_call
 

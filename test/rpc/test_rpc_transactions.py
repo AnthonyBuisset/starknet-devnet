@@ -7,8 +7,12 @@ from __future__ import annotations
 from typing import List
 
 from test.shared import INCORRECT_GENESIS_BLOCK_HASH
+
 from starkware.starknet.definitions import constants
-from starknet_devnet.blueprints.rpc_utils import rpc_txn_type, rpc_felt, RpcContractClass
+
+from starknet_devnet.blueprints.rpc.structures.payloads import RpcContractClass
+from starknet_devnet.blueprints.rpc.structures.types import rpc_txn_type
+from starknet_devnet.blueprints.rpc.utils import rpc_felt
 
 from .rpc_utils import rpc_call, get_block_with_transaction, pad_zero
 

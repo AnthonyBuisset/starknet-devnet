@@ -10,11 +10,12 @@ import typing
 from test.util import load_file_content
 from test.test_endpoints import send_transaction
 
-import pytest
 from starkware.starknet.services.api.contract_class import ContractClass
 from starkware.starknet.services.api.gateway.transaction import Transaction, Deploy
 
-from starknet_devnet.blueprints.rpc_utils import BlockNumberDict, BlockHashDict
+import pytest
+from starknet_devnet.blueprints.rpc.structures.types import BlockNumberDict, BlockHashDict
+
 from .rpc_utils import gateway_call, get_block_with_transaction, pad_zero
 
 DEPLOY_CONTENT = load_file_content("deploy_rpc.json")

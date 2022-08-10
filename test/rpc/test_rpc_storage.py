@@ -5,7 +5,7 @@ Tests RPC storage
 import pytest
 from starkware.starknet.public.abi import get_storage_var_address
 
-from .rpc_utils import rpc_call, get_block_with_transaction
+from .rpc_utils import rpc_call, get_block_with_transaction, pad_zero
 
 
 def test_get_storage_at(deploy_info):
@@ -18,14 +18,14 @@ def test_get_storage_at(deploy_info):
 
     resp = rpc_call(
         "starknet_getStorageAt", params={
-            "contract_address": contract_address,
+            "contract_address": pad_zero(contract_address),
             "key": key,
             "block_id": block_id,
         }
     )
     storage = resp["result"]
 
-    assert storage == "0x0"
+    assert storage == "0x00"
 
 
 # pylint: disable=unused-argument
@@ -38,7 +38,7 @@ def test_get_storage_at_raises_on_incorrect_contract(deploy_info):
 
     ex = rpc_call(
         "starknet_getStorageAt", params={
-            "contract_address": "0x0",
+            "contract_address": "0x00",
             "key": key,
             "block_id": block_id,
         }
@@ -60,12 +60,12 @@ def test_get_storage_at_raises_on_incorrect_key(deploy_info):
     block = get_block_with_transaction(deploy_info["transaction_hash"])
 
     contract_address: str = deploy_info["address"]
-    block_id: str = block["block_id"]
+    block_id = {"block_number": block["block_number"]}
 
     ex = rpc_call(
         "starknet_getStorageAt", params={
-            "contract_address": contract_address,
-            "key": "0x0",
+            "contract_address": pad_zero(contract_address),
+            "key": "0x00",
             "block_id": block_id,
         }
     )
@@ -89,7 +89,7 @@ def test_get_storage_at_raises_on_incorrect_block_id(deploy_info):
 
     ex = rpc_call(
         "starknet_getStorageAt", params={
-            "contract_address": contract_address,
+            "contract_address": pad_zero(contract_address),
             "key": key,
             "block_id": "0x0",
         }

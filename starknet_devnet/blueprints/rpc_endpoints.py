@@ -3,7 +3,6 @@ RPC endpoints
 API Specification v0.1.0
 https://github.com/starkware-libs/starknet-specs/releases/tag/v0.1.0
 """
-# pylint: disable=too-many-lines
 
 from __future__ import annotations
 
@@ -45,7 +44,7 @@ async def get_block_with_txs(block_id: BlockId) -> dict:
     Get block information with full transactions given the block id
     """
     block = get_block_by_block_id(block_id)
-    return await rpc_block(block=block, requested_scope="FULL_TXNS")
+    return await rpc_block(block=block, tx_type="FULL_TXNS")
 
 
 async def get_state_update(block_id: BlockId) -> dict:
@@ -74,10 +73,11 @@ async def get_storage_at(contract_address: Address, key: str, block_id: BlockId)
     if not state.starknet_wrapper.contracts.is_deployed(int(contract_address, 16)):
         raise RpcError(code=20, message="Contract not found")
 
-    return await state.starknet_wrapper.get_storage_at(
+    storage = await state.starknet_wrapper.get_storage_at(
         contract_address=int(contract_address, 16),
         key=int(key, 16)
     )
+    return rpc_felt(int(storage, 16))
 
 
 async def get_transaction_by_hash(transaction_hash: TxnHash) -> dict:
@@ -183,7 +183,9 @@ async def call(request: FunctionCall, block_id: BlockId) -> List[Felt]:
         raise RpcError(code=20, message="Contract not found")
 
     try:
-        return await state.starknet_wrapper.call(transaction=make_invoke_function(request))
+        result = await state.starknet_wrapper.call(transaction=make_invoke_function(request))
+        result["result"] = [rpc_felt(int(res, 16)) for res in result["result"]]
+        return result
     except StarknetDevnetException as ex:
         raise RpcError(code=-1, message=ex.message) from ex
     except StarkException as ex:
@@ -207,8 +209,6 @@ async def estimate_fee(request: RpcInvokeTransaction, block_id: BlockId) -> dict
 
     try:
         fee_response = await state.starknet_wrapper.calculate_actual_fee(invoke_function)
-    except StarknetDevnetException as ex:
-        raise RpcError(code=-1, message=ex.message) from ex
     except StarkException as ex:
         if f"Entry point {request['entry_point_selector']} not found" in ex.message:
             raise RpcError(code=21, message="Invalid message selector") from ex

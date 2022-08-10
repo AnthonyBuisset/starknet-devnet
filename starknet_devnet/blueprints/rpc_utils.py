@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Callable, Union, List, Optional
 
+from starkware.starknet.definitions.general_config import StarknetGeneralConfig
 from starkware.starknet.services.api.contract_class import ContractClass
 from starkware.starknet.services.api.feeder_gateway.response_objects import (
     BlockStatus,
@@ -88,6 +89,8 @@ def rpc_txn_type(transaction_type: str) -> TxnType:
         "DECLARE": "DECLARE",
         "INVOKE_FUNCTION": "INVOKE",
     }
+    if transaction_type not in txn_type_map:
+        raise RpcError(code=-1, message=f"Current implementation does not support {transaction_type} transaction type")
     return txn_type_map[transaction_type]
 
 
@@ -105,7 +108,7 @@ class RpcBlock(TypedDict):
     transactions: Union[List[str], List[RpcTransaction]]
 
 
-async def rpc_block(block: StarknetBlock, requested_scope: Optional[str] = "TXN_HASH") -> RpcBlock:
+async def rpc_block(block: StarknetBlock, tx_type: Optional[str] = "TXN_HASH") -> RpcBlock:
     """
     Convert gateway block to rpc block
     """
@@ -120,14 +123,16 @@ async def rpc_block(block: StarknetBlock, requested_scope: Optional[str] = "TXN_
         # pylint: disable=no-member
         return rpc_root(block.state_root.hex())
 
+    def config() -> StarknetGeneralConfig:
+        devnet_state = state.starknet_wrapper.get_state()
+        config = devnet_state.general_config
+        return config
+
     mapping: dict[str, Callable] = {
         "TXN_HASH": transaction_hashes,
         "FULL_TXNS": transactions,
     }
-    transactions: list = await mapping[requested_scope]()
-
-    devnet_state = state.starknet_wrapper.get_state()
-    config = devnet_state.general_config
+    transactions: list = await mapping[tx_type]()
 
     block: RpcBlock = {
         "status": rpc_block_status(block.status.name),
@@ -136,7 +141,7 @@ async def rpc_block(block: StarknetBlock, requested_scope: Optional[str] = "TXN_
         "block_number": block.block_number if block.block_number is not None else 0,
         "new_root": new_root(),
         "timestamp": block.timestamp,
-        "sequencer_address": hex(config.sequencer_address),
+        "sequencer_address": hex(config().sequencer_address),
         "transactions": transactions,
     }
     return block
@@ -187,6 +192,18 @@ class RpcDeployTransaction(TypedDict):
 
 
 RpcTransaction = Union[RpcInvokeTransaction, RpcDeclareTransaction, RpcDeployTransaction]
+
+
+def rpc_transaction(transaction: TransactionSpecificInfo) -> RpcTransaction:
+    """
+    Convert gateway transaction to rpc transaction
+    """
+    tx_mapping = {
+        TransactionType.DEPLOY: rpc_deploy_transaction,
+        TransactionType.INVOKE_FUNCTION: rpc_invoke_transaction,
+        TransactionType.DECLARE: rpc_declare_transaction,
+    }
+    return tx_mapping[transaction.tx_type](transaction)
 
 
 class FunctionCall(TypedDict):
@@ -280,7 +297,7 @@ def make_invoke_function(request_body: dict) -> InvokeFunction:
         calldata=[int(data, 16) for data in request_body["calldata"]],
         max_fee=int(request_body["max_fee"], 16) if "max_fee" in request_body else 0,
         version=int(request_body["version"], 16) if "version" in request_body else 0,
-        signature=[int(data, 16) for data in request_body["signature"]] if "signature" in request_body else [],
+        signature=[int(data, 16) for data in request_body.get("signature", [])],
     )
 
 
@@ -327,7 +344,7 @@ def rpc_contract_class(contract_class: ContractClass) -> RpcContractClass:
             for entry_point in entry_points:
                 _entry_point: EntryPoint = {
                     "selector": rpc_felt(entry_point.selector),
-                    "offset": rpc_felt(entry_point.offset)
+                    "offset": hex(entry_point.offset)
                 }
                 _entry_points[typ.name].append(_entry_point)
         return _entry_points
@@ -463,18 +480,6 @@ class RpcDeployTransactionResult(TypedDict):
     contract_address: Felt
 
 
-def rpc_transaction(transaction: TransactionSpecificInfo) -> RpcTransaction:
-    """
-    Convert gateway transaction to rpc transaction
-    """
-    tx_mapping = {
-        TransactionType.DEPLOY: rpc_deploy_transaction,
-        TransactionType.INVOKE_FUNCTION: rpc_invoke_transaction,
-        TransactionType.DECLARE: rpc_declare_transaction,
-    }
-    return tx_mapping[transaction.tx_type](transaction)
-
-
 class MessageToL1(TypedDict):
     """
     TypedDict for rpc message from l2 to l1
@@ -563,7 +568,7 @@ def rpc_invoke_receipt(txr: TransactionReceipt) -> RpcInvokeReceipt:
         messages = []
         for message in txr.l2_to_l1_messages:
             msg: MessageToL1 = {
-                "to_address": message.to_address,
+                "to_address": rpc_felt(message.to_address),
                 "payload": [rpc_felt(p) for p in message.payload]
             }
             messages.append(msg)
@@ -595,12 +600,7 @@ def rpc_invoke_receipt(txr: TransactionReceipt) -> RpcInvokeReceipt:
         "messages_sent": l2_to_l1_messages(),
         "l1_origin_message": l1_to_l2_message(),
         "events": events(),
-        "transaction_hash": base_receipt["transaction_hash"],
-        "status": base_receipt["status"],
-        "status_data": base_receipt["status_data"],
-        "actual_fee": base_receipt["actual_fee"],
-        "block_hash": base_receipt["block_hash"],
-        "block_number": base_receipt["block_number"],
+        **base_receipt,
     }
     return receipt
 
@@ -648,7 +648,7 @@ def rpc_base_transaction_receipt(txr: TransactionReceipt) -> RpcBaseTransactionR
         "actual_fee": rpc_felt(txr.actual_fee or 0),
         "status": status(),
         "status_data": status_data(),
-        "block_hash": rpc_felt(txr.block_hash) if txr.block_hash is not None else txr.block_hash,
+        "block_hash": rpc_felt(txr.block_hash) if txr.block_hash is not None else None,
         "block_number": txr.block_number,
     }
     return receipt
@@ -677,7 +677,7 @@ def block_tag_to_block_number(block_id: BlockId) -> BlockId:
             return {"block_number": state.starknet_wrapper.blocks.get_number_of_blocks() - 1}
 
         if block_id == "pending":
-            raise RpcError(code=-1, message="Calls with block_hash == 'pending' are not supported currently.")
+            raise RpcError(code=-1, message="Calls with block_id == 'pending' are not supported currently.")
 
         raise RpcError(code=24, message="Invalid block id")
 
@@ -688,7 +688,8 @@ def get_block_by_block_id(block_id: BlockId) -> dict:
     """
     Get block using different method depending on block_id type
     """
-    block_id = block_tag_to_block_number(block_id)
+    if block_id in ["latest", "pending"]:
+        block_id = block_tag_to_block_number(block_id)
 
     try:
         if "block_hash" in block_id:

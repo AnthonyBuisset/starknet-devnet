@@ -46,7 +46,7 @@ def test_get_state_update(deploy_info, invoke_info, contract_class):
         "storage_diffs": [],
         "deployed_contracts": [
             {
-                "address": contract_address,
+                "address": pad_zero(contract_address),
                 "class_hash": pad_zero(hex(compute_class_hash(contract_class))),
             }
         ],

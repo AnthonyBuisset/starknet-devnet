@@ -40,7 +40,7 @@ def test_get_block_with_tx_hashes(deploy_info, gateway_block, block_id):
 
 # pylint: disable=unused-argument
 @pytest.mark.parametrize("block_id", [BlockNumberDict(block_number=1234),
-                                      BlockHashDict(block_hash=INCORRECT_GENESIS_BLOCK_HASH)])
+                                      BlockHashDict(block_hash=pad_zero(INCORRECT_GENESIS_BLOCK_HASH))])
 def test_get_block_with_tx_hashes_raises_on_incorrect_block_id(deploy_info, block_id):
     """
     Get block with tx hashes by incorrect block_id
@@ -94,7 +94,7 @@ def test_get_block_with_txs(deploy_info, gateway_block, block_id):
 
 # pylint: disable=unused-argument
 @pytest.mark.parametrize("block_id", [BlockNumberDict(block_number=1234),
-                                      BlockHashDict(block_hash=INCORRECT_GENESIS_BLOCK_HASH)])
+                                      BlockHashDict(block_hash=pad_zero(INCORRECT_GENESIS_BLOCK_HASH))])
 def test_get_block_with_txs_raises_on_incorrect_block_id(deploy_info, block_id):
     """
     Get block with txs by incorrect block_id
@@ -127,7 +127,7 @@ def test_get_block_transaction_count(deploy_info, gateway_block, block_id):
 
 # pylint: disable=unused-argument
 @pytest.mark.parametrize("block_id", [BlockNumberDict(block_number=99999),
-                                      BlockHashDict(block_hash=INCORRECT_GENESIS_BLOCK_HASH)])
+                                      BlockHashDict(block_hash=pad_zero(INCORRECT_GENESIS_BLOCK_HASH))])
 def test_get_block_transaction_count_raises_on_incorrect_block_id(deploy_info, block_id):
     """
     Get count of transactions in block by incorrect block id

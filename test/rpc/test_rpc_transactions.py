@@ -23,7 +23,7 @@ def test_get_transaction_by_hash_deploy(deploy_info):
     contract_address: str = deploy_info["address"]
 
     resp = rpc_call(
-        "starknet_getTransactionByHash", params={"transaction_hash": transaction_hash}
+        "starknet_getTransactionByHash", params={"transaction_hash": pad_zero(transaction_hash)}
     )
     transaction = resp["result"]
 
@@ -54,7 +54,7 @@ def test_get_transaction_by_hash_invoke(deploy_info, invoke_info):
                            for data in invoke_info["calldata"]]
 
     resp = rpc_call(
-        "starknet_getTransactionByHash", params={"transaction_hash": transaction_hash}
+        "starknet_getTransactionByHash", params={"transaction_hash": pad_zero(transaction_hash)}
     )
     transaction = resp["result"]
 
@@ -82,7 +82,7 @@ def test_get_transaction_by_hash_declare(declare_info):
                             for sig in declare_info["signature"]]
 
     resp = rpc_call(
-        "starknet_getTransactionByHash", params={"transaction_hash": transaction_hash}
+        "starknet_getTransactionByHash", params={"transaction_hash": pad_zero(transaction_hash)}
     )
     transaction = resp["result"]
 
@@ -104,7 +104,7 @@ def test_get_transaction_by_hash_raises_on_incorrect_hash(deploy_info):
     Get transaction by incorrect hash
     """
     ex = rpc_call(
-        "starknet_getTransactionByHash", params={"transaction_hash": "0x0"}
+        "starknet_getTransactionByHash", params={"transaction_hash": "0x00"}
     )
 
     assert ex["error"] == {
@@ -152,7 +152,7 @@ def test_get_transaction_by_block_id_and_index_raises_on_incorrect_block_hash():
     ex = rpc_call(
         "starknet_getTransactionByBlockIdAndIndex", params={
             "block_id": {
-                "block_hash": INCORRECT_GENESIS_BLOCK_HASH
+                "block_hash": pad_zero(INCORRECT_GENESIS_BLOCK_HASH)
             },
             "index": 0
         }
@@ -174,7 +174,7 @@ def test_get_transaction_by_block_id_and_index_raises_on_incorrect_index(deploy_
     ex = rpc_call(
         "starknet_getTransactionByBlockIdAndIndex", params={
             "block_id": {
-                "block_hash": block_hash,
+                "block_hash": pad_zero(block_hash),
             },
             "index": 999999
         }
@@ -195,7 +195,7 @@ def test_get_declare_transaction_receipt(declare_info):
 
     resp = rpc_call(
         "starknet_getTransactionReceipt", params={
-            "transaction_hash": transaction_hash
+            "transaction_hash": pad_zero(transaction_hash)
         }
     )
     receipt = resp["result"]
@@ -218,7 +218,7 @@ def test_get_invoke_transaction_receipt(invoke_info):
 
     resp = rpc_call(
         "starknet_getTransactionReceipt", params={
-            "transaction_hash": transaction_hash
+            "transaction_hash": pad_zero(transaction_hash)
         }
     )
     receipt = resp["result"]
@@ -257,7 +257,7 @@ def test_get_deploy_transaction_receipt(deploy_info):
 
     resp = rpc_call(
         "starknet_getTransactionReceipt", params={
-            "transaction_hash": transaction_hash
+            "transaction_hash": pad_zero(transaction_hash)
         }
     )
     receipt = resp["result"]
@@ -280,11 +280,11 @@ def test_add_invoke_transaction(invoke_content):
         "starknet_addInvokeTransaction",
         params={
             "function_invocation": {
-                "contract_address": invoke_content["contract_address"],
-                "entry_point_selector": invoke_content["entry_point_selector"],
-                "calldata": invoke_content["calldata"],
+                "contract_address": pad_zero(invoke_content["contract_address"]),
+                "entry_point_selector": pad_zero(invoke_content["entry_point_selector"]),
+                "calldata": [pad_zero(hex(int(data))) for data in invoke_content["calldata"]],
             },
-            "signature": invoke_content["signature"],
+            "signature": [pad_zero(sig) for sig in invoke_content["signature"]],
             "max_fee": hex(0),
             "version": hex(constants.TRANSACTION_VERSION),
         }
@@ -300,6 +300,12 @@ def test_add_declare_transaction_on_incorrect_contract(declare_content):
     Add declare transaction on incorrect class
     """
     contract_class = declare_content["contract_class"]
+
+    external_entry_points = contract_class["entry_points_by_type"]["EXTERNAL"]
+    for i, _ in enumerate(external_entry_points):
+        external_entry_points[i]["selector"] = pad_zero(external_entry_points[i]["selector"])
+
+    contract_class["entry_points_by_type"]["EXTERNAL"] = external_entry_points
 
     rpc_contract = RpcContractClass(
         program="",
@@ -325,6 +331,12 @@ def test_add_declare_transaction(declare_content):
     Add declare transaction
     """
     contract_class = declare_content["contract_class"]
+
+    external_entry_points = contract_class["entry_points_by_type"]["EXTERNAL"]
+    for i, _ in enumerate(external_entry_points):
+        external_entry_points[i]["selector"] = pad_zero(external_entry_points[i]["selector"])
+
+    contract_class["entry_points_by_type"]["EXTERNAL"] = external_entry_points
 
     rpc_contract = RpcContractClass(
         program=contract_class["program"],
@@ -353,6 +365,12 @@ def test_add_deploy_transaction_on_incorrect_contract(deploy_content):
     salt = deploy_content["contract_address_salt"]
     calldata = [rpc_felt(data) for data in deploy_content["constructor_calldata"]]
 
+    external_entry_points = contract_definition["entry_points_by_type"]["EXTERNAL"]
+    for i, _ in enumerate(external_entry_points):
+        external_entry_points[i]["selector"] = pad_zero(external_entry_points[i]["selector"])
+
+    contract_definition["entry_points_by_type"]["EXTERNAL"] = external_entry_points
+
     rpc_contract = RpcContractClass(
         program="",
         entry_points_by_type=contract_definition["entry_points_by_type"],
@@ -361,7 +379,7 @@ def test_add_deploy_transaction_on_incorrect_contract(deploy_content):
     ex = rpc_call(
         "starknet_addDeployTransaction",
         params={
-            "contract_address_salt": salt,
+            "contract_address_salt": pad_zero(salt),
             "constructor_calldata": calldata,
             "contract_definition": rpc_contract,
         }
@@ -381,6 +399,12 @@ def test_add_deploy_transaction(deploy_content):
     salt = deploy_content["contract_address_salt"]
     calldata = [rpc_felt(data) for data in deploy_content["constructor_calldata"]]
 
+    external_entry_points = contract_definition["entry_points_by_type"]["EXTERNAL"]
+    for i, _ in enumerate(external_entry_points):
+        external_entry_points[i]["selector"] = pad_zero(external_entry_points[i]["selector"])
+
+    contract_definition["entry_points_by_type"]["EXTERNAL"] = external_entry_points
+
     rpc_contract = RpcContractClass(
         program=contract_definition["program"],
         entry_points_by_type=contract_definition["entry_points_by_type"],
@@ -389,7 +413,7 @@ def test_add_deploy_transaction(deploy_content):
     resp = rpc_call(
         "starknet_addDeployTransaction",
         params={
-            "contract_address_salt": salt,
+            "contract_address_salt": pad_zero(salt),
             "constructor_calldata": calldata,
             "contract_definition": rpc_contract,
         }

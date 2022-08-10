@@ -7,7 +7,7 @@ from __future__ import annotations
 from starkware.starknet.public.abi import get_storage_var_address
 from starkware.starknet.core.os.class_hash import compute_class_hash
 
-from starknet_devnet.blueprints.rpc import BlockHashDict
+from starknet_devnet.blueprints.rpc_utils import BlockHashDict
 from starknet_devnet.general_config import DEFAULT_GENERAL_CONFIG
 
 from .rpc_utils import rpc_call, gateway_call, get_block_with_transaction, pad_zero
@@ -46,7 +46,7 @@ def test_get_state_update(deploy_info, invoke_info, contract_class):
         "storage_diffs": [],
         "deployed_contracts": [
             {
-                "address": contract_address,
+                "address": pad_zero(contract_address),
                 "class_hash": pad_zero(hex(compute_class_hash(contract_class))),
             }
         ],

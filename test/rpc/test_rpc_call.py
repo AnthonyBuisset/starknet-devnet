@@ -5,7 +5,7 @@ Tests RPC rpc_call
 import pytest
 from starkware.starknet.public.abi import get_selector_from_name
 
-from .rpc_utils import rpc_call
+from .rpc_utils import rpc_call, pad_zero
 
 
 def test_call(deploy_info):
@@ -17,7 +17,7 @@ def test_call(deploy_info):
     resp = rpc_call(
         "starknet_call", params={
             "request": {
-                "contract_address": contract_address,
+                "contract_address": pad_zero(contract_address),
                 "entry_point_selector": hex(get_selector_from_name("get_balance")),
                 "calldata": [],
             },
@@ -28,7 +28,7 @@ def test_call(deploy_info):
 
     assert isinstance(result["result"], list)
     assert len(result["result"]) == 1
-    assert result["result"][0] == "0x0"
+    assert result["result"][0] == "0x00"
 
 
 # pylint: disable=unused-argument
@@ -62,7 +62,7 @@ def test_call_raises_on_incorrect_selector(deploy_info):
     ex = rpc_call(
         "starknet_call", params={
             "request": {
-                "contract_address": contract_address,
+                "contract_address": pad_zero(contract_address),
                 "entry_point_selector": hex(get_selector_from_name("xxxxxxx")),
                 "calldata": [],
             },
@@ -85,7 +85,7 @@ def test_call_raises_on_invalid_calldata(deploy_info):
     ex = rpc_call(
         "starknet_call", params={
             "request": {
-                "contract_address": contract_address,
+                "contract_address": pad_zero(contract_address),
                 "entry_point_selector": hex(get_selector_from_name("get_balance")),
                 "calldata": ["a", "b", "123"],
             },
@@ -110,7 +110,7 @@ def test_call_raises_on_incorrect_block_hash(deploy_info):
     ex = rpc_call(
         "starknet_call", params={
             "request": {
-                "contract_address": contract_address,
+                "contract_address": pad_zero(contract_address),
                 "entry_point_selector": hex(get_selector_from_name("get_balance")),
                 "calldata": [],
             },
@@ -120,5 +120,5 @@ def test_call_raises_on_incorrect_block_hash(deploy_info):
 
     assert ex["error"] == {
         "code": 24,
-        "message": "Invalid block hash"
+        "message": "Invalid block id"
     }

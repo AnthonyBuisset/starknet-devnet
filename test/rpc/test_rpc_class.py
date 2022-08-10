@@ -3,8 +3,8 @@ Tests RPC contract class
 """
 from starkware.starknet.services.api.gateway.transaction_utils import decompress_program
 
-from starknet_devnet.blueprints.rpc import BlockId
-from .rpc_utils import rpc_call
+from starknet_devnet.blueprints.rpc_utils import BlockId
+from .rpc_utils import rpc_call, pad_zero
 
 
 def test_get_class(class_hash):
@@ -20,8 +20,8 @@ def test_get_class(class_hash):
     assert contract_class["entry_points_by_type"] == {
         "CONSTRUCTOR": [],
         "EXTERNAL": [
-            {"offset": "0x03a", "selector": "0x0362398bec32bc0ebb411203221a35a0301193a96f317ebe5e40be9f60d15320"},
-            {"offset": "0x05b", "selector": "0x039e11d48192e4333233c7eb19d10ad67c362bb28580c604d67884c85da39695"}
+            {"offset": "0x3a", "selector": "0x0362398bec32bc0ebb411203221a35a0301193a96f317ebe5e40be9f60d15320"},
+            {"offset": "0x5b", "selector": "0x039e11d48192e4333233c7eb19d10ad67c362bb28580c604d67884c85da39695"}
         ],
         "L1_HANDLER": []
     }
@@ -38,7 +38,7 @@ def test_get_class_hash_at(deploy_info, class_hash):
 
     resp = rpc_call(
         "starknet_getClassHashAt",
-        params={"contract_address": contract_address, "block_id": block_id}
+        params={"contract_address": pad_zero(contract_address), "block_id": block_id}
     )
     rpc_class_hash = resp["result"]
 
@@ -54,15 +54,15 @@ def test_get_class_at(deploy_info):
 
     resp = rpc_call(
         "starknet_getClassAt",
-        params={"contract_address": contract_address, "block_id": block_id}
+        params={"contract_address": pad_zero(contract_address), "block_id": block_id}
     )
     contract_class = resp["result"]
 
     assert contract_class["entry_points_by_type"] == {
         "CONSTRUCTOR": [],
         "EXTERNAL": [
-            {"offset": "0x03a", "selector": "0x0362398bec32bc0ebb411203221a35a0301193a96f317ebe5e40be9f60d15320"},
-            {"offset": "0x05b", "selector": "0x039e11d48192e4333233c7eb19d10ad67c362bb28580c604d67884c85da39695"}
+            {"offset": "0x3a", "selector": "0x0362398bec32bc0ebb411203221a35a0301193a96f317ebe5e40be9f60d15320"},
+            {"offset": "0x5b", "selector": "0x039e11d48192e4333233c7eb19d10ad67c362bb28580c604d67884c85da39695"}
         ],
         "L1_HANDLER": []
     }

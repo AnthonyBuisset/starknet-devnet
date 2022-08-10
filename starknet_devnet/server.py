@@ -15,7 +15,7 @@ from .blueprints.base import base
 from .blueprints.gateway import gateway
 from .blueprints.feeder_gateway import feeder_gateway
 from .blueprints.postman import postman
-from .blueprints.rpc.rpc import rpc
+from .blueprints.rpc.routes import rpc
 from .util import DumpOn, check_valid_dump_path, parse_args
 from .starknet_wrapper import DevnetConfig
 from .state import state

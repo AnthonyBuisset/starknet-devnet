@@ -6,7 +6,7 @@ from typing import List
 
 from starkware.starkware_utils.error_handling import StarkException
 
-from starknet_devnet.blueprints.rpc.rpc_utils import rpc_felt, assert_block_id_is_latest
+from starknet_devnet.blueprints.rpc.utils import rpc_felt, assert_block_id_is_latest
 from starknet_devnet.blueprints.rpc.structures.payloads import make_invoke_function, FunctionCall
 from starknet_devnet.blueprints.rpc.structures.types import Felt, BlockId, RpcError
 from starknet_devnet.state import state

@@ -3,7 +3,7 @@ Tests RPC contract class
 """
 from starkware.starknet.services.api.gateway.transaction_utils import decompress_program
 
-from starknet_devnet.blueprints.rpc.rpc_utils import BlockId
+from starknet_devnet.blueprints.rpc.utils import BlockId
 from .rpc_utils import rpc_call, pad_zero
 
 

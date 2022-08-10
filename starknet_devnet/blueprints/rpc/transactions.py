@@ -13,7 +13,7 @@ from starkware.starknet.services.api.gateway.transaction import InvokeFunction, 
 from starkware.starknet.services.api.gateway.transaction_utils import decompress_program
 from starkware.starkware_utils.error_handling import StarkException
 
-from starknet_devnet.blueprints.rpc.rpc_utils import get_block_by_block_id, rpc_felt, \
+from starknet_devnet.blueprints.rpc.utils import get_block_by_block_id, rpc_felt, \
     assert_block_id_is_latest
 from starknet_devnet.blueprints.rpc.structures.payloads import rpc_transaction, RpcTransaction, FunctionCall, \
     RpcContractClass, RpcInvokeTransaction, make_invoke_function, rpc_fee_estimate

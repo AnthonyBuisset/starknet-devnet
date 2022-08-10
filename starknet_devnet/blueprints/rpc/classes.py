@@ -1,8 +1,8 @@
 """
-RPC class endpoints
+RPC classes endpoints
 """
 
-from starknet_devnet.blueprints.rpc.rpc_utils import assert_block_id_is_latest, rpc_felt
+from starknet_devnet.blueprints.rpc.utils import assert_block_id_is_latest, rpc_felt
 from starknet_devnet.blueprints.rpc.structures.payloads import rpc_contract_class
 from starknet_devnet.blueprints.rpc.structures.types import BlockId, Address, Felt, RpcError
 from starknet_devnet.state import state

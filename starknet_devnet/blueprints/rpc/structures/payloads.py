@@ -21,7 +21,7 @@ from starkware.starknet.services.api.gateway.transaction import InvokeFunction
 from starkware.starknet.services.api.gateway.transaction_utils import compress_program
 from typing_extensions import TypedDict
 
-from starknet_devnet.blueprints.rpc.rpc_utils import rpc_root, rpc_felt
+from starknet_devnet.blueprints.rpc.utils import rpc_root, rpc_felt
 from starknet_devnet.blueprints.rpc.structures.types import RpcBlockStatus, BlockHash, BlockNumber, Felt, \
     rpc_block_status, TxnHash, Address, NumAsHex, TxnType, rpc_txn_type
 from starknet_devnet.state import state

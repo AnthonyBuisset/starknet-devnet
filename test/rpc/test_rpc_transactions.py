@@ -12,7 +12,7 @@ from starkware.starknet.definitions import constants
 
 from starknet_devnet.blueprints.rpc.structures.payloads import RpcContractClass
 from starknet_devnet.blueprints.rpc.structures.types import rpc_txn_type
-from starknet_devnet.blueprints.rpc.rpc_utils import rpc_felt
+from starknet_devnet.blueprints.rpc.utils import rpc_felt
 
 from .rpc_utils import rpc_call, get_block_with_transaction, pad_zero
 

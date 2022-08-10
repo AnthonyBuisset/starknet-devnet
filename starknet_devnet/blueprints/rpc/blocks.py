@@ -2,7 +2,7 @@
 RPC block endpoints
 """
 
-from starknet_devnet.blueprints.rpc.rpc_utils import get_block_by_block_id, rpc_felt
+from starknet_devnet.blueprints.rpc.utils import get_block_by_block_id, rpc_felt
 from starknet_devnet.blueprints.rpc.structures.payloads import rpc_block
 from starknet_devnet.blueprints.rpc.structures.types import BlockId, RpcError
 from starknet_devnet.state import state

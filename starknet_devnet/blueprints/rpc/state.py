@@ -2,7 +2,7 @@
 RPC state endpoints
 """
 
-from starknet_devnet.blueprints.rpc.rpc_utils import block_tag_to_block_number
+from starknet_devnet.blueprints.rpc.utils import block_tag_to_block_number
 from starknet_devnet.blueprints.rpc.structures.payloads import rpc_state_update
 from starknet_devnet.blueprints.rpc.structures.types import BlockId, RpcError
 from starknet_devnet.state import state

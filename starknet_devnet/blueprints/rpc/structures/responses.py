@@ -7,7 +7,7 @@ from typing import TypedDict, List, Optional, Union
 from starkware.starknet.definitions.transaction_type import TransactionType
 from starkware.starknet.services.api.feeder_gateway.response_objects import TransactionReceipt, TransactionStatus
 
-from starknet_devnet.blueprints.rpc.rpc_utils import rpc_felt
+from starknet_devnet.blueprints.rpc.utils import rpc_felt
 from starknet_devnet.blueprints.rpc.structures.types import TxnHash, Felt, Address, BlockNumber, BlockHash, TxnStatus
 from starknet_devnet.state import state
 
@@ -120,14 +120,10 @@ def rpc_invoke_receipt(txr: TransactionReceipt) -> RpcInvokeReceipt:
     Convert rpc invoke transaction receipt to rpc format
     """
     def l2_to_l1_messages() -> List[MessageToL1]:
-        messages = []
-        for message in txr.l2_to_l1_messages:
-            msg: MessageToL1 = {
-                "to_address": rpc_felt(message.to_address),
-                "payload": [rpc_felt(p) for p in message.payload]
-            }
-            messages.append(msg)
-        return messages
+        return [{
+            "to_address": rpc_felt(message.to_address),
+            "payload": [rpc_felt(p) for p in message.payload]
+        } for message in txr.l2_to_l1_messages]
 
     def l1_to_l2_message() -> Optional[MessageToL2]:
         if txr.l1_to_l2_consumed_message is None:

@@ -2,7 +2,8 @@
 RPC types
 """
 
-from typing import Literal, TypedDict, Union
+from typing import Union
+from typing_extensions import Literal, TypedDict
 
 from starkware.starknet.services.api.feeder_gateway.response_objects import BlockStatus
 

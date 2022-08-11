@@ -167,7 +167,7 @@ async def estimate_fee(request: RpcInvokeTransaction, block_id: BlockId) -> dict
     try:
         fee_response = await state.starknet_wrapper.calculate_actual_fee(invoke_function)
     except StarkException as ex:
-        if f"Entry point {request['entry_point_selector']} not found" in ex.message:
+        if f"Entry point {hex(int(request['entry_point_selector'], 16))} not found" in ex.message:
             raise RpcError(code=21, message="Invalid message selector") from ex
         if "While handling calldata" in ex.message:
             raise RpcError(code=22, message="Invalid call data") from ex

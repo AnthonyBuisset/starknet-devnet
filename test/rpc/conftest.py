@@ -10,6 +10,8 @@ import typing
 from test.util import load_file_content
 from test.test_endpoints import send_transaction
 
+from starkware.starknet.definitions import constants
+
 from starkware.starknet.services.api.contract_class import ContractClass
 from starkware.starknet.services.api.gateway.transaction import Transaction, Deploy
 
@@ -117,3 +119,19 @@ def fixture_block_id(gateway_block, request) -> dict:
         "tag": "latest",
     }
     return block_id_map[request.param]
+
+
+@pytest.fixture(name="rpc_invoke_tx_common", scope="module")
+def fixture_rpc_invoke_tx_common() -> dict:
+    """
+    Common fields on RpcInvokeTransaction
+    """
+    return {
+        # It is not verified and might be removed in next RPC version
+        "transaction_hash": "0x00",
+        "max_fee": "0x00",
+        "version": hex(constants.TRANSACTION_VERSION),
+        "signature": [],
+        "nonce": "0x00",
+        "type": "INVOKE",
+    }

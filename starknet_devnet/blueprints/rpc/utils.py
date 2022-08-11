@@ -55,6 +55,15 @@ def rpc_felt(value: int) -> str:
     return "0x0" + hex(value).lstrip("0x")
 
 
+def pad_zero(felt: str) -> str:
+    """
+    Convert felt with format `0xValue` to format `0x0Value`
+    """
+    if felt == "0x0":
+        return "0x00"
+    return "0x0" + felt.lstrip("0x")
+
+
 def rpc_root(root: str) -> str:
     """
     Convert 0 prefixed root to 0x prefixed root

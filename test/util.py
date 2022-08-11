@@ -2,6 +2,7 @@
 File containing functions that wrap Starknet CLI commands.
 """
 
+import functools
 import json
 import os
 import re
@@ -41,6 +42,7 @@ def devnet_in_background(*devnet_args, **devnet_kwargs):
     Prints devnet output in case of AssertionError.
     """
     def wrapper(func):
+        @functools.wraps(func)
         def inner_wrapper(*args, **kwargs):
             proc = run_devnet_in_background(*devnet_args, **devnet_kwargs)
             try:

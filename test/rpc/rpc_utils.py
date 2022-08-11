@@ -7,13 +7,16 @@ from __future__ import annotations
 import json
 from typing import Union
 
+from test.settings import APP_URL
 import requests
 
 from starknet_devnet.server import app
-from test.settings import APP_URL
 
 
 def make_rpc_payload(method: str, params: Union[dict, list]):
+    """
+    Make a wrapper for rpc call
+    """
     return {
         "jsonrpc": "2.0",
         "method": method,
@@ -23,6 +26,9 @@ def make_rpc_payload(method: str, params: Union[dict, list]):
 
 
 def rpc_call_background_devnet(method: str, params: Union[dict, list]):
+    """
+    RPC call to devnet in backgound
+    """
     payload = make_rpc_payload(method, params)
     return requests.post(f"{APP_URL}/rpc", json=payload).json()
 

@@ -2,7 +2,8 @@
 RPC response structures
 """
 
-from typing import TypedDict, List, Optional, Union
+from typing import List, Optional, Union
+from typing_extensions import TypedDict
 
 from starkware.starknet.definitions.transaction_type import TransactionType
 from starkware.starknet.services.api.feeder_gateway.response_objects import TransactionReceipt, TransactionStatus

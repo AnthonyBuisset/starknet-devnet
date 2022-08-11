@@ -7,27 +7,31 @@ from __future__ import annotations
 import json
 from typing import Union
 
+import requests
+
 from starknet_devnet.server import app
+from test.settings import APP_URL
 
 
-def rpc_call(method: str, params: Union[dict, list]) -> dict:
-    """
-    Make a call to the RPC endpoint
-    """
-    req = {
+def make_rpc_payload(method: str, params: Union[dict, list]):
+    return {
         "jsonrpc": "2.0",
         "method": method,
         "params": params,
         "id": 0
     }
 
-    resp = app.test_client().post(
-        "/rpc",
-        content_type="application/json",
-        data=json.dumps(req)
-    )
-    result = json.loads(resp.data.decode("utf-8"))
-    return result
+
+def rpc_call_background_devnet(method: str, params: Union[dict, list]):
+    payload = make_rpc_payload(method, params)
+    return requests.post(f"{APP_URL}/rpc", json=payload).json()
+
+
+def rpc_call(method: str, params: Union[dict, list]) -> dict:
+    """
+    Make a call to the RPC endpoint
+    """
+    return app.test_client().post("/rpc", json=make_rpc_payload(method, params)).json
 
 
 def gateway_call(method: str, **kwargs):

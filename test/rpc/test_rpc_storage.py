@@ -8,6 +8,7 @@ from starkware.starknet.public.abi import get_storage_var_address
 from .rpc_utils import rpc_call, get_block_with_transaction, pad_zero
 
 
+@pytest.mark.usefixtures("run_devnet_in_background")
 def test_get_storage_at(deploy_info):
     """
     Get storage at address
@@ -29,6 +30,7 @@ def test_get_storage_at(deploy_info):
 
 
 # pylint: disable=unused-argument
+@pytest.mark.usefixtures("run_devnet_in_background")
 def test_get_storage_at_raises_on_incorrect_contract(deploy_info):
     """
     Get storage at incorrect contract
@@ -53,6 +55,7 @@ def test_get_storage_at_raises_on_incorrect_contract(deploy_info):
 # internal workings of get_storage_at would have to be changed for this to work
 # since currently it will (correctly) return 0x0 for any incorrect key
 @pytest.mark.xfail
+@pytest.mark.usefixtures("run_devnet_in_background")
 def test_get_storage_at_raises_on_incorrect_key(deploy_info):
     """
     Get storage at incorrect key
@@ -79,6 +82,7 @@ def test_get_storage_at_raises_on_incorrect_key(deploy_info):
 # This will fail as get_storage_at only supports "latest" as block_id
 # and will fail with custom exception if other is provided
 @pytest.mark.xfail
+@pytest.mark.usefixtures("run_devnet_in_background")
 def test_get_storage_at_raises_on_incorrect_block_id(deploy_info):
     """
     Get storage at incorrect block id

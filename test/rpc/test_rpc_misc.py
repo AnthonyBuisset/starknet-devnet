@@ -4,6 +4,7 @@ Tests RPC miscellaneous
 
 from __future__ import annotations
 
+import pytest
 from starkware.starknet.public.abi import get_storage_var_address
 from starkware.starknet.core.os.class_hash import compute_class_hash
 
@@ -13,6 +14,7 @@ from starknet_devnet.general_config import DEFAULT_GENERAL_CONFIG
 from .rpc_utils import rpc_call, gateway_call, get_block_with_transaction, pad_zero
 
 
+@pytest.mark.usefixtures("run_devnet_in_background")
 def test_get_state_update(deploy_info, invoke_info, contract_class):
     """
     Get state update for the block
@@ -83,6 +85,7 @@ def test_get_state_update(deploy_info, invoke_info, contract_class):
     }
 
 
+@pytest.mark.usefixtures("run_devnet_in_background")
 def test_chain_id():
     """
     Test chain id

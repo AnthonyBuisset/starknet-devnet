@@ -1,12 +1,14 @@
 """
 Tests RPC contract class
 """
+import pytest
 from starkware.starknet.services.api.gateway.transaction_utils import decompress_program
 
 from starknet_devnet.blueprints.rpc.utils import BlockId
 from .rpc_utils import rpc_call, pad_zero
 
 
+@pytest.mark.usefixtures("run_devnet_in_background")
 def test_get_class(class_hash):
     """
     Test get contract class
@@ -29,6 +31,7 @@ def test_get_class(class_hash):
     decompress_program({"contract_class": contract_class}, False)
 
 
+@pytest.mark.usefixtures("run_devnet_in_background")
 def test_get_class_hash_at(deploy_info, class_hash):
     """
     Test get contract class at given hash
@@ -45,6 +48,7 @@ def test_get_class_hash_at(deploy_info, class_hash):
     assert rpc_class_hash == class_hash
 
 
+@pytest.mark.usefixtures("run_devnet_in_background")
 def test_get_class_at(deploy_info):
     """
     Test get contract class at given contract address

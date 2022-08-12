@@ -6,7 +6,9 @@ from __future__ import annotations
 
 from test.rpc.rpc_utils import rpc_call_background_devnet
 from test.shared import CONTRACT_PATH
-from test.util import devnet_in_background, deploy
+from test.util import deploy
+
+import pytest
 
 from starkware.starknet.definitions import constants
 from starkware.starknet.public.abi import get_selector_from_name
@@ -26,8 +28,9 @@ def common_estimate_response(response):
     assert overall_fee == gas_consumed * gas_price
 
 
-@devnet_in_background("--gas-price", str(DEFAULT_GAS_PRICE))
-def test_estimate_happy_path():
+# pylint: disable=unused-argument
+@pytest.mark.parametrize("run_devnet_in_background", [["--gas-price", str(DEFAULT_GAS_PRICE)]], indirect=True)
+def test_estimate_happy_path(run_devnet_in_background):
     """Happy path estimate_fee call"""
     deploy_info = deploy(CONTRACT_PATH, ["0"])
 
@@ -50,7 +53,7 @@ def test_estimate_happy_path():
     print("RESULT", res)
 
 
-@devnet_in_background()
+@pytest.mark.usefixtures("run_devnet_in_background")
 def test_estimate_fee_with_genesis_block(rpc_invoke_tx_common):
     """Call without transaction, expect pass with gas_price zero"""
     txn: RpcInvokeTransaction = {
@@ -66,7 +69,7 @@ def test_estimate_fee_with_genesis_block(rpc_invoke_tx_common):
     common_estimate_response(response)
 
 
-@devnet_in_background()
+@pytest.mark.usefixtures("run_devnet_in_background")
 def test_estimate_fee_with_invalid_call_data(rpc_invoke_tx_common):
     """Call estimate fee with invalid data on body"""
     deploy_info = deploy(CONTRACT_PATH, ["0"])
@@ -87,7 +90,7 @@ def test_estimate_fee_with_invalid_call_data(rpc_invoke_tx_common):
     }
 
 
-@devnet_in_background()
+@pytest.mark.usefixtures("run_devnet_in_background")
 def test_estimate_fee_with_invalid_contract_address(rpc_invoke_tx_common):
     """Call estimate fee with invalid data on body"""
     txn: RpcInvokeTransaction = {
@@ -106,7 +109,7 @@ def test_estimate_fee_with_invalid_contract_address(rpc_invoke_tx_common):
     }
 
 
-@devnet_in_background()
+@pytest.mark.usefixtures("run_devnet_in_background")
 def test_estimate_fee_with_invalid_message_selector(rpc_invoke_tx_common):
     """Call estimate fee with invalid data on body"""
     deploy_info = deploy(CONTRACT_PATH, ["0"])
@@ -127,8 +130,9 @@ def test_estimate_fee_with_invalid_message_selector(rpc_invoke_tx_common):
     }
 
 
-@devnet_in_background("--gas-price", str(DEFAULT_GAS_PRICE))
-def test_estimate_fee_with_complete_request_data(rpc_invoke_tx_common):
+# pylint: disable=unused-argument
+@pytest.mark.parametrize("run_devnet_in_background", [["--gas-price", str(DEFAULT_GAS_PRICE)]], indirect=True)
+def test_estimate_fee_with_complete_request_data(run_devnet_in_background, rpc_invoke_tx_common):
     """Estimate fee with complete request data"""
 
     deploy_info = deploy(CONTRACT_PATH, ["0"])

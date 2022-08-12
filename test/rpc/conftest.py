@@ -7,18 +7,15 @@ from __future__ import annotations
 import json
 import typing
 
-from test.util import load_file_content
-from test.test_endpoints import send_transaction
+from test.util import load_file_content, run_devnet_in_background, terminate_and_wait
 
 from starkware.starknet.definitions import constants
-
 from starkware.starknet.services.api.contract_class import ContractClass
 from starkware.starknet.services.api.gateway.transaction import Transaction, Deploy
 
 import pytest
 from starknet_devnet.blueprints.rpc.structures.types import BlockNumberDict, BlockHashDict
-
-from .rpc_utils import gateway_call, get_block_with_transaction, pad_zero
+from .rpc_utils import gateway_call, get_block_with_transaction, pad_zero, add_transaction
 
 DEPLOY_CONTENT = load_file_content("deploy_rpc.json")
 INVOKE_CONTENT = load_file_content("invoke_rpc.json")
@@ -43,40 +40,36 @@ def fixture_class_hash(deploy_info) -> str:
     return pad_zero(class_hash)
 
 
-@pytest.fixture(name="deploy_info", scope="module")
+@pytest.fixture(name="deploy_info")
 def fixture_deploy_info() -> dict:
     """
     Deploy a contract on devnet and return deployment info dict
     """
-    resp = send_transaction(json.loads(DEPLOY_CONTENT))
-    deploy_info = json.loads(resp.data.decode("utf-8"))
-    return deploy_info
+    return add_transaction(json.loads(DEPLOY_CONTENT))
 
 
-@pytest.fixture(name="invoke_info", scope="module")
+@pytest.fixture(name="invoke_info")
 def fixture_invoke_info() -> dict:
     """
     Make an invoke transaction on devnet and return invoke info dict
     """
     invoke_tx = json.loads(INVOKE_CONTENT)
     invoke_tx["calldata"] = ["0"]
-    resp = send_transaction(invoke_tx)
-    invoke_info = json.loads(resp.data.decode("utf-8"))
+    invoke_info = add_transaction(invoke_tx)
     return {**invoke_info, **invoke_tx}
 
 
-@pytest.fixture(name="declare_info", scope="module")
+@pytest.fixture(name="declare_info")
 def fixture_declare_info() -> dict:
     """
     Make a declare transaction on devnet and return declare info dict
     """
     declare_tx = json.loads(DECLARE_CONTENT)
-    resp = send_transaction(declare_tx)
-    declare_info = json.loads(resp.data.decode("utf-8"))
+    declare_info = add_transaction(declare_tx)
     return {**declare_info, **declare_tx}
 
 
-@pytest.fixture(name="invoke_content", scope="module")
+@pytest.fixture(name="invoke_content")
 def fixture_invoke_content() -> dict:
     """
     Invoke content JSON object
@@ -84,7 +77,7 @@ def fixture_invoke_content() -> dict:
     return json.loads(INVOKE_CONTENT)
 
 
-@pytest.fixture(name="deploy_content", scope="module")
+@pytest.fixture(name="deploy_content")
 def fixture_deploy_content() -> dict:
     """
     Deploy content JSON object
@@ -92,7 +85,7 @@ def fixture_deploy_content() -> dict:
     return json.loads(DEPLOY_CONTENT)
 
 
-@pytest.fixture(name="declare_content", scope="module")
+@pytest.fixture(name="declare_content")
 def fixture_declare_content() -> dict:
     """
     Declare content JSON object
@@ -100,7 +93,7 @@ def fixture_declare_content() -> dict:
     return json.loads(DECLARE_CONTENT)
 
 
-@pytest.fixture(name="gateway_block", scope="module")
+@pytest.fixture(name="gateway_block")
 def fixture_gateway_block(deploy_info) -> dict:
     """
     Block with Deploy transaction
@@ -108,7 +101,7 @@ def fixture_gateway_block(deploy_info) -> dict:
     return get_block_with_transaction(deploy_info["transaction_hash"])
 
 
-@pytest.fixture(name="block_id", scope="module")
+@pytest.fixture(name="block_id")
 def fixture_block_id(gateway_block, request) -> dict:
     """
     BlockId of gateway_block depending on type in request
@@ -121,7 +114,7 @@ def fixture_block_id(gateway_block, request) -> dict:
     return block_id_map[request.param]
 
 
-@pytest.fixture(name="rpc_invoke_tx_common", scope="module")
+@pytest.fixture(name="rpc_invoke_tx_common")
 def fixture_rpc_invoke_tx_common() -> dict:
     """
     Common fields on RpcInvokeTransaction
@@ -135,3 +128,16 @@ def fixture_rpc_invoke_tx_common() -> dict:
         "nonce": "0x00",
         "type": "INVOKE",
     }
+
+
+@pytest.fixture(name="run_devnet_in_background")
+def fixture_run_devnet_in_background(request) -> dict:
+    """
+    Run devnet instance in background
+    """
+    args = getattr(request, "param", [])
+    proc = run_devnet_in_background(*args)
+    try:
+        yield
+    finally:
+        terminate_and_wait(proc)

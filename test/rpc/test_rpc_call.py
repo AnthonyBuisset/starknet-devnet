@@ -8,6 +8,7 @@ from starkware.starknet.public.abi import get_selector_from_name
 from .rpc_utils import rpc_call, pad_zero
 
 
+@pytest.mark.usefixtures("run_devnet_in_background")
 def test_call(deploy_info):
     """
     Call contract
@@ -32,6 +33,7 @@ def test_call(deploy_info):
 
 
 # pylint: disable=unused-argument
+@pytest.mark.usefixtures("run_devnet_in_background")
 def test_call_raises_on_incorrect_contract_address(deploy_info):
     """
     Call contract with incorrect address
@@ -53,6 +55,7 @@ def test_call_raises_on_incorrect_contract_address(deploy_info):
     }
 
 
+@pytest.mark.usefixtures("run_devnet_in_background")
 def test_call_raises_on_incorrect_selector(deploy_info):
     """
     Call contract with incorrect entry point selector
@@ -76,6 +79,7 @@ def test_call_raises_on_incorrect_selector(deploy_info):
     }
 
 
+@pytest.mark.usefixtures("run_devnet_in_background")
 def test_call_raises_on_invalid_calldata(deploy_info):
     """
     Call contract with incorrect calldata
@@ -101,6 +105,7 @@ def test_call_raises_on_invalid_calldata(deploy_info):
 
 # This test will fail since we are throwing a custom error block_hash different from `latest`
 @pytest.mark.xfail
+@pytest.mark.usefixtures("run_devnet_in_background")
 def test_call_raises_on_incorrect_block_hash(deploy_info):
     """
     Call contract with incorrect block hash
